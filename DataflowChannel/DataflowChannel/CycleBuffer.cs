@@ -13,7 +13,7 @@ namespace DataflowChannel
             Writer = seg;
         }
 
-        // current reader segment
+        // head segment
         public CycleBufferSegment<T> Head;
         private long _empty00;
         private long _empty01;

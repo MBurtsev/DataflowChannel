@@ -56,7 +56,6 @@ namespace Example
                 var sum = 0;
                 var empty = 0;
                 var start = sw.ElapsedMilliseconds;
-                var i = 0;
 
                 while (true)
                 {
@@ -66,10 +65,8 @@ namespace Example
                         {
                             break;
                         }
-                        else
-                        {
-                            sum += 1;
-                        }
+
+                        sum++;
                     }
                     else
                     {

@@ -13,7 +13,7 @@ namespace DataflowChannel
         // Reading thread position
         public int ReaderPosition;
         private long _empty00; // To prevent thread friction on the databus.
-        private long _empty01; // Improves performance x2
+        private long _empty01; // To improve performance
         private long _empty02;
         private long _empty03;
         private long _empty04;
@@ -54,6 +54,14 @@ namespace DataflowChannel
 
         // Next segment
         public CycleBufferSegment<T> Next;
+        private long _empty32;
+        private long _empty33;
+        private long _empty34;
+        private long _empty35;
+        private long _empty36;
+        private long _empty37;
+        private long _empty38;
+        private long _empty39;
 
         public override string ToString()
         {
