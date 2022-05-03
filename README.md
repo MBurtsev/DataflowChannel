@@ -53,7 +53,6 @@ Performance about 180-190 millions operations per second
                 var sum = 0;
                 var empty = 0;
                 var start = sw.ElapsedMilliseconds;
-                var i = 0;
 
                 while (true)
                 {
@@ -63,10 +62,8 @@ Performance about 180-190 millions operations per second
                         {
                             break;
                         }
-                        else
-                        {
-                            sum += 1;
-                        }
+                        
+                        sum += 1;
                     }
                     else
                     {
