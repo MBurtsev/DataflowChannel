@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿// Maksim Burtsev https://github.com/MBurtsev
+// Licensed under the MIT license.
 
 namespace DataflowChannel
 {

@@ -1,5 +1,7 @@
-﻿using DataflowChannel;
-using System.Collections.Concurrent;
+﻿// Maksim Burtsev https://github.com/MBurtsev
+// Licensed under the MIT license.
+
+using DataflowChannel;
 using System.Diagnostics;
 
 namespace Example

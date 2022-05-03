@@ -1,5 +1,7 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
+﻿// Maksim Burtsev https://github.com/MBurtsev
+// Licensed under the MIT license.
+
+using System.Diagnostics.CodeAnalysis;
 
 namespace DataflowChannel
 {
@@ -106,38 +108,6 @@ namespace DataflowChannel
                     _buffer.Writer = new_seg;
 
                     return;
-                }
-
-                seg.WriterMessages[seg.WriterPosition] = value;
-                seg.WriterPosition++;
-            }
-        }
-
-        public void Write2(T value) 
-        {
-            checked
-            {
-                ref var seg = ref _buffer.Writer;
-
-                if (seg.WriterPosition == _capacity)
-                {
-                    if (seg.Next != null && seg.ReaderPosition == _capacity)
-                    {
-                        seg = seg.Next;
-                    }
-                    else if (_buffer.Head != null && _buffer.Head.ReaderPosition == _capacity)
-                    {
-                        seg = _buffer.Head;
-                    }
-                    else
-                    {
-                        seg = new CycleBufferSegment<T>(_capacity)
-                        {
-                            Next = seg.Next
-                        };
-                    }
-
-                    seg.WriterPosition = 0;
                 }
 
                 seg.WriterMessages[seg.WriterPosition] = value;
