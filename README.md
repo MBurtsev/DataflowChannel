@@ -63,7 +63,7 @@ Performance about 180-190 millions operations per second
                             break;
                         }
                         
-                        sum += 1;
+                        sum++;
                     }
                     else
                     {
