@@ -15,8 +15,8 @@ Performance:
 | Producer: 1, Consumer: 1 | 170M |  155M |
 
 ## MPOC No Order - Multiple Producers One Consumer
-At the core a cycle buffer that implements a producer-consumer pattern. 
-Producers use spin lock for setup unknown thread only once. All write operations fully lock-free\wait-free.
+Producers use spin lock for initialization thread only once. 
+All write operations fully lock-free\wait-free.
 Customer fully lock-free\wait-free.
 No order means that read order is not equal to write order.
     
