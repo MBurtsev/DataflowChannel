@@ -42,68 +42,88 @@ Performance:
 ```c#
         static void Sample()
         {
-            var threads = 2;
+            var producers = 8;
+            var consumers = 1;
+            var threads = producers + consumers;
             var ready = 0;
             var count = 100_000_000;
             var sw = Stopwatch.StartNew();
+
+            // Attention: No more than one consumer and one producer
+            //var channel = new ChannelOPOC<int>();
             
-            var channel = new ChannelOPOC<int>();
-
-            // Run Producer
-            Task.Factory.StartNew(() =>
+            // Attention: No more than one consumer
+            var channel = new ChannelMPOCnoOrder<int>();
+            
+            // Run producers
+            for (var n = 0; n < producers; n++)
             {
-                Interlocked.Add(ref ready, 1);
-
-                while (Volatile.Read(ref ready) < threads)
+                Task.Factory.StartNew(() =>
                 {
-                }
+                    Interlocked.Add(ref ready, 1);
 
-                var start = sw.ElapsedMilliseconds;
-
-                for (int i = 0; i < count; i++)
-                {
-                    channel.Write(i);
-                }
-
-                channel.Write(-1);
-
-                Console.WriteLine($"Producer time:{sw.ElapsedMilliseconds - start}, thread:{Thread.CurrentThread.ManagedThreadId}");
-
-            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-
-            // Run Consumer
-            Task.Factory.StartNew(() =>
-            {
-                Interlocked.Add(ref ready, 1);
-
-                while (Volatile.Read(ref ready) < threads)
-                {
-                }
-
-                var sum = 0;
-                var empty = 0;
-                var start = sw.ElapsedMilliseconds;
-
-                while (true)
-                {
-                    if (channel.TryRead(out var num))
+                    while (Volatile.Read(ref ready) < threads)
                     {
-                        if (num == -1)
+                    }
+
+                    var start = sw.ElapsedMilliseconds;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        channel.Write(i);
+                    }
+
+                    channel.Write(-1);
+
+                    Console.WriteLine($"Producer time:{sw.ElapsedMilliseconds - start}, thread:{Thread.CurrentThread.ManagedThreadId}");
+
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
+
+            // Run consumers
+            for (var n = 0; n < consumers; n++)
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    Interlocked.Add(ref ready, 1);
+
+                    while (Volatile.Read(ref ready) < threads)
+                    {
+                    }
+
+                    var sum   = 0;
+                    var empty = 0;
+                    var exit  = 0;
+                    var start = sw.ElapsedMilliseconds;
+
+                    while (true)
+                    {
+                        if (channel.TryRead(out var num))
                         {
-                            break;
+                            if (num == -1)
+                            {
+                                exit++;
+
+                                if (exit == producers)
+                                {
+                                    break;
+                                }
+
+                                continue;
+                            }
+
+                            sum++;
                         }
-                        
-                        sum++;
+                        else
+                        {
+                            empty++;
+                        }
                     }
-                    else
-                    {
-                        empty++;
-                    }
-                }
 
-                Console.WriteLine($"Consumer time:{sw.ElapsedMilliseconds - start}, thread:{Thread.CurrentThread.ManagedThreadId}, sum:{sum}, empty reads:{empty}");
+                    Console.WriteLine($"Consumer time:{sw.ElapsedMilliseconds - start}, thread:{Thread.CurrentThread.ManagedThreadId}, sum:{sum}, empty reads:{empty}");
 
-            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
         }
 ```
 
