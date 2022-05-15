@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "DataflowChannel": {
+      "commandName": "Project",
+      "hotReloadEnabled": false,
+      "nativeDebugging": true
+    }
+  }
+}

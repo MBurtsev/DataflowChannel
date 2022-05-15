@@ -1,34 +1,34 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-// Here is the working class, but not so fast as I want
-
-namespace DataflowChannelA
+namespace DataflowChannel
 {
     /// <summary>
-    /// MPOC - Many Producers One Consumer.
+    ///  - One Producer One Consumer.
+    /// Channel to use only two threads at the same time. 
     /// At the core a cycle buffer that implements a producer-consumer pattern. 
-    /// Synchronization of writer threads only with Interlocked.Add.
-    /// Reader fully lock-free\wait-free.
+    /// Fully wait-free implementation without any CAS operations.
     /// </summary>
-    public partial class ChannelMPOC<T>
+    [DebuggerDisplay("Count:{Count}")]
+    public partial class ChannelOPOC<T>
     {
         // The default value that is used if the user has not specified a capacity.
-        private const int DEFAULT_CAPACITY = 32 * 1024;
+        private const int DEFAULT_CAPACITY = 64 * 1024;
         private readonly int _capacity;
 
         // Chennel data
-        private CycleBufferMPOC<T> _data;
+        private CycleBuffer _data;
 
-        public ChannelMPOC() : this(DEFAULT_CAPACITY)
+        public ChannelOPOC() : this(DEFAULT_CAPACITY)
         { 
         }
 
-        public ChannelMPOC(int capacity)
+        public ChannelOPOC(int capacity)
         {
-            _data   = new CycleBufferMPOC<T>(capacity);
+            _data   = new CycleBuffer(capacity);
             _capacity = capacity;
         }
 
@@ -79,11 +79,10 @@ namespace DataflowChannelA
             unchecked
             {
                 var seg = _data.Writer;
-                var pos = Interlocked.Add(ref seg.WriterSync, 1);
 
-                if (pos == _capacity + 1)
+                if (seg.WriterPosition == _capacity)
                 {
-                    CycleBufferSegmentMPOC<T> next;
+                    CycleBufferSegment next;
 
                     var flag = seg.Next == null;
 
@@ -97,7 +96,7 @@ namespace DataflowChannelA
                     }
                     else
                     {
-                        next = new CycleBufferSegmentMPOC<T>(_capacity)
+                        next = new CycleBufferSegment(_capacity)
                         {
                             Next = seg.Next
                         };
@@ -107,33 +106,16 @@ namespace DataflowChannelA
 
                     next.WriterMessages[0] = value;
                     next.WriterPosition = 1;
-                    next.WriterSync = 1;
 
-                    seg.WriterPosition = _capacity;
-
-                    Volatile.Write(ref _data.Writer, next);
-
-                    return;
-                }
-                else if (pos > _capacity + 1)
-                {
-                    while (Volatile.Read(ref _data.Writer) == seg)
-                    {
-                    }
-
-                    Write(value);
+                    _data.Writer = next;
 
                     return;
                 }
 
-                seg.WriterMessages[pos - 1] = value;
+                var pos = seg.WriterPosition;
 
-                //if (Volatile.Read(ref seg.WriterSync) == pos)
-                //{
-                //    seg.WriterPosition = pos;
-                //}
-
-                Interlocked.Add(ref seg.WriterPosition, 1);
+                seg.WriterMessages[pos] = value;
+                seg.WriterPosition = pos + 1;
             }
         }
 
@@ -152,7 +134,7 @@ namespace DataflowChannelA
                         return false;
                     }
 
-                    CycleBufferSegmentMPOC<T> next;
+                    CycleBufferSegment next;
 
                     if (seg.Next != null)
                     {
@@ -188,16 +170,16 @@ namespace DataflowChannelA
 
         public void Clear()
         {
-            _data = new CycleBufferMPOC<T>(_capacity);
+            _data = new CycleBuffer(_capacity);
         }
 
         #region ' Structures '
 
-        private sealed class CycleBufferMPOC<T>
+        private sealed class CycleBuffer
         {
-            public CycleBufferMPOC(int capacity)
+            public CycleBuffer(int capacity)
             {
-                var seg = new CycleBufferSegmentMPOC<T>(capacity);
+                var seg = new CycleBufferSegment(capacity);
 
                 Head = seg;
                 Reader = seg;
@@ -205,7 +187,7 @@ namespace DataflowChannelA
             }
 
             // head segment
-            public CycleBufferSegmentMPOC<T> Head;
+            public CycleBufferSegment Head;
             private long _empty00;
             private long _empty01;
             private long _empty02;
@@ -216,7 +198,7 @@ namespace DataflowChannelA
             private long _empty07;
 
             // current reader segment
-            public CycleBufferSegmentMPOC<T> Reader;
+            public CycleBufferSegment Reader;
             private long _empty08;
             private long _empty09;
             private long _empty10;
@@ -227,7 +209,7 @@ namespace DataflowChannelA
             private long _empty15;
 
             // current writer segment
-            public CycleBufferSegmentMPOC<T> Writer;
+            public CycleBufferSegment Writer;
             private long _empty16;
             private long _empty17;
             private long _empty18;
@@ -238,9 +220,9 @@ namespace DataflowChannelA
             private long _empty23;
         }
 
-        private sealed class CycleBufferSegmentMPOC<T>
+        private sealed class CycleBufferSegment
         {
-            public CycleBufferSegmentMPOC(int capacity)
+            public CycleBufferSegment(int capacity)
             {
                 ReaderMessages = new T[capacity];
                 WriterMessages = ReaderMessages;
@@ -278,8 +260,7 @@ namespace DataflowChannelA
             private long _empty22;
             private long _empty23;
 
-            // For sync writers
-            public int WriterSync;
+            public T[] WriterMessages;
             private long _empty24;
             private long _empty25;
             private long _empty26;
@@ -289,7 +270,8 @@ namespace DataflowChannelA
             private long _empty30;
             private long _empty31;
 
-            public T[] WriterMessages;
+            // Next segment
+            public CycleBufferSegment Next;
             private long _empty32;
             private long _empty33;
             private long _empty34;
@@ -299,17 +281,6 @@ namespace DataflowChannelA
             private long _empty38;
             private long _empty39;
 
-            // Next segment
-            public CycleBufferSegmentMPOC<T> Next;
-            private long _empty40;
-            private long _empty41;
-            private long _empty42;
-            private long _empty43;
-            private long _empty44;
-            private long _empty45;
-            private long _empty46;
-            private long _empty47;
-
             public override string ToString()
             {
                 return this.GetHashCode().ToString();
@@ -317,6 +288,5 @@ namespace DataflowChannelA
         }
 
         #endregion
-
     }
 }

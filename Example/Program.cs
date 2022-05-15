@@ -11,25 +11,31 @@ namespace Example
         static void Main()
         {
             Sample();
+            //MeasureConsumer();
 
             Console.ReadLine();
         }
 
         static void Sample()
         {
-            var producers = 2;
-            var consumers = 1;
+            var producers = 1;
+            var consumers = 0;
             var threads = producers + consumers;
             var ready = 0;
             var count = 100_000_000;
             var sw = Stopwatch.StartNew();
 
-            // No more than one consumer
-            var channel = new ChannelMPOCnoOrder<int>();
-            // No more than one consumer
-            //var channel = new DataflowChannelA.ChannelMPOC<int>();
-            // No more than one consumer and one producer
+            // Attention: No more than one consumer and one producer
             //var channel = new ChannelOPOC<int>();
+
+            // Attention: No more than one consumer
+            var channel = new ChannelMPOCnoOrder<int>();
+            //var channel = new DataflowChannelA.ChannelMPOC<int>();
+
+            // No limits
+            //var channel = new ChannelMPMC<int>();
+            //var channel = new DataflowChannel_B1.ChannelMPMC<int>();
+            //var channel = new DataflowChannel_B2.ChannelMPMC<int>();
 
             // Run producers
             for (var n = 0; n < producers; n++)
@@ -90,6 +96,72 @@ namespace Example
                             else if (num != sum)
                             {
                                 var bp = 0;
+                            }
+
+                            sum++;
+                        }
+                        else
+                        {
+                            empty++;
+                        }
+                    }
+
+                    Console.WriteLine($"Consumer time:{sw.ElapsedMilliseconds - start}, thread:{Thread.CurrentThread.ManagedThreadId}, sum:{sum}, empty reads:{empty}");
+
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
+        }
+
+        static void MeasureConsumer()
+        {
+            var consumers = 1;
+            var threads = consumers;
+            var ready = 0;
+            var count = 100_000_000;
+            var sw = Stopwatch.StartNew();
+
+            //var channel = new ChannelOPOC<int>();
+            var channel = new ChannelMPOCnoOrder<int>();
+            //var channel = new DataflowChannelA.ChannelMPOC<int>();
+
+            // Prepare data
+            for (int i = 0; i < count * threads; i++)
+            {
+                channel.Write(i);
+            }
+
+            channel.Write(-1);
+
+            // Run consumers
+            for (var n = 0; n < consumers; n++)
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    Interlocked.Add(ref ready, 1);
+
+                    while (Volatile.Read(ref ready) < threads)
+                    {
+                    }
+
+                    var sum   = 0;
+                    var empty = 0;
+                    var exit  = 0;
+                    var start = sw.ElapsedMilliseconds;
+
+                    while (true)
+                    {
+                        if (channel.TryRead(out var num))
+                        {
+                            if (num == -1)
+                            {
+                                exit++;
+
+                                if (exit == threads)
+                                {
+                                    break;
+                                }
+
+                                continue;
                             }
 
                             sum++;

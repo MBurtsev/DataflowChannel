@@ -1,11 +1,20 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
+using System.Runtime.InteropServices;
+
 namespace DataflowChannel
 {
     internal class Helper
     {
     }
+
+    [StructLayout(LayoutKind.Explicit, Size = 256/*PaddingHelpers.CACHE_LINE_SIZE*/)]
+    struct EmptySpace
+    {
+        [FieldOffset(0)]
+        int _empty;
+    };
 
     /// <summary>
     ///     A size greater than or equal to the size of the most common CPU cache lines.

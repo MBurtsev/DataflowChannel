@@ -1,21 +1,23 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
-namespace DataflowChannel
+namespace DataflowChannel_A
 {
     /// <summary>
-    /// MPOC - Many Producers One Consumer.
+    /// MPOC - Multiple Producer Multiple Consumer.
     /// At the core a cycle buffer that implements a producer-consumer pattern. 
-    /// Producers use spin lock for setup unknowed threads only once. All
-    /// write operations fully lock-free\wait-free bounded memory.
+    /// Producers use spin lock for initialization thread only once. All
+    /// write operations fully lock-free\wait-free.
     /// Customer fully lock-free\wait-free.
     /// No order means that read order is not equal to write order.
     /// </summary>
-    public partial class ChannelMPOCnoOrder<T>
+    public partial class ChannelMPMC<T>
     {
         private const int THREADS_STORAGE_SIZE = 64;
         // The default value that is used if the user has not specified a capacity.
@@ -25,11 +27,11 @@ namespace DataflowChannel
         // Channel data
         private ChannelData _channel;
 
-        public ChannelMPOCnoOrder() : this(DEFAULT_CAPACITY)
+        public ChannelMPMC() : this(DEFAULT_CAPACITY)
         { 
         }
 
-        public ChannelMPOCnoOrder(int capacity)
+        public ChannelMPMC(int capacity)
         {
             _capacity = capacity;
             _channel  = new ChannelData(((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE);
@@ -110,8 +112,9 @@ namespace DataflowChannel
         {
             unchecked
             {
-                var data = GetStorage().Data;
-                var seg = data.Writer;
+                var storage = GetStorage(out var channel);
+                var data    = storage.Data;
+                var seg     = data.Writer;
 
                 if (seg.WriterPosition == _capacity)
                 {
@@ -138,87 +141,145 @@ namespace DataflowChannel
                         seg.Next = next;
                     }
 
-                    next.WriterMessages[0] = value;
-                    next.WriterPosition = 1;
+                    next.Back = seg;
+                    next.WriterPosition = 0;
 
-                    data.Writer = next;
-
-                    return;
+                    data.Writer = seg = next;
                 }
 
-                seg.WriterMessages[seg.WriterPosition] = value;
+                // Get last writer thread id
+                var last = channel.WriterLastId;
+                // Declare new operation id
+                var operation = Interlocked.Add(ref channel.WriterOperation, 1);
+                // Write value
+                seg.WriterMessages[seg.WriterPosition] = 
+                    new MessageItem { Value = value, Operation = (uint)operation-- };
+                // Don't worry about out of sync. Since the write is atomic,
+                // we'll be fine with either of the last values.
+                channel.WriterLastId = storage.Id;
+
                 seg.WriterPosition++;
+
+                // Search for previous operation
+                while (true)
+                {
+                    var thread = channel.Storage[last % channel.Size];
+                    var tSeg   = thread.Data.Writer;
+                    var tPos   = tSeg.WriterPosition - 1;
+                    
+                    while (true)
+                    {
+                        ref var tOpr = ref tSeg.WriterMessages[tPos];
+
+                        if (tOpr.Operation == operation)
+                        {
+                            tSeg.WriterMessages[tPos].Next = storage.Id;
+
+                            return;
+                        }
+                        else if (tOpr.Operation < operation)
+                        {
+                            if (tOpr.Next != 0)
+                            {
+                                last = tOpr.Next;
+
+                                break;
+                            }
+
+                            while (Volatile.Read(ref tOpr.Next) == 0)
+                            {
+                            }
+
+                            last = tOpr.Next;
+
+                            break;
+                        }
+
+                        tPos--;
+
+                        if (tPos < 0)
+                        {
+                            tSeg = tSeg.Back;
+                            tPos = _capacity - 1;
+
+                            if (tSeg == null)
+                            {
+                                return;
+                            }
+                        }
+                    }
+                }
             }
         }
 
         public bool TryRead([MaybeNullWhen(false)] out T value)
         {
-            unchecked
-            {
-                var channel = _channel;
-                var start   = channel.Reader;
-                var cur     = start;
+            //unchecked
+            //{
+            //    var channel = _channel;
+            //    var start   = channel.Reader;
+            //    var cur     = start;
 
-                if (cur == null)
-                {
-                    value = default;
+            //    if (cur == null)
+            //    {
+            //        value = default;
 
-                    return false;
-                }
+            //        return false;
+            //    }
 
-                do
-                {
-                    var seg = cur.Data.Reader;
+            //    do
+            //    {
+            //        var seg = cur.Data.Reader;
 
-                    if (seg.ReaderPosition == _capacity)
-                    {
-                        if (seg == cur.Data.Writer)
-                        {
-                            goto proceed;
-                        }
+            //        if (seg.ReaderPosition == _capacity)
+            //        {
+            //            if (seg == cur.Data.Writer)
+            //            {
+            //                goto proceed;
+            //            }
 
-                        CycleBufferSegmentMPOC next;
+            //            CycleBufferSegmentMPOC next;
 
-                        if (seg.Next != null)
-                        {
-                            next = seg.Next;
-                        }
-                        else
-                        {
-                            next = cur.Data.Head;
-                        }
+            //            if (seg.Next != null)
+            //            {
+            //                next = seg.Next;
+            //            }
+            //            else
+            //            {
+            //                next = cur.Data.Head;
+            //            }
 
-                        next.ReaderPosition = 0;
+            //            next.ReaderPosition = 0;
 
-                        seg = next;
+            //            seg = next;
 
-                        cur.Data.Reader = seg;
-                    }
+            //            cur.Data.Reader = seg;
+            //        }
 
-                    // reader position check
-                    if (seg.ReaderPosition != seg.WriterPosition)
-                    {
-                        value = seg.ReaderMessages[seg.ReaderPosition];
+            //        // reader position check
+            //        if (seg.ReaderPosition != seg.WriterPosition)
+            //        {
+            //            value = seg.ReaderMessages[seg.ReaderPosition];
 
-                        seg.ReaderPosition++;
+            //            seg.ReaderPosition++;
 
-                        return true;
-                    }
+            //            return true;
+            //        }
 
-                proceed: 
-                    cur = channel.Reader = cur.Next;
+            //    proceed: 
+            //        cur = channel.Reader = cur.Next;
 
-                    if (cur == null)
-                    {
-                        cur = channel.Reader = channel.Head;
-                    }
-                } 
-                while (cur != start);
+            //        if (cur == null)
+            //        {
+            //            cur = channel.Reader = channel.Head;
+            //        }
+            //    } 
+            //    while (cur != start);
 
-                value = default;
+            value = default;
 
-                return false;
-            }
+            return false;
+            //}
         }
 
         public void Clear()
@@ -245,12 +306,13 @@ namespace DataflowChannel
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ThreadData GetStorage()
+        private ThreadData GetStorage(out ChannelData channel)
         {
             unchecked
             {
+                channel = _channel;
+
                 var id      = Thread.CurrentThread.ManagedThreadId;
-                var channel = _channel;
                 var hash    = id % channel.Size;
                 var thread  = channel.Storage[hash];
 
@@ -259,14 +321,12 @@ namespace DataflowChannel
                     return thread;
                 }
 
-                return SetupThread(id);
+                return SetupThread(id, ref channel);
             }
         }
 
-        private ThreadData SetupThread(int id)
+        private ThreadData SetupThread(int id, ref ChannelData channel)
         {
-            var channel = _channel;
-
             // set lock
             while (Interlocked.CompareExchange(ref channel.SyncChannel, 1, 0) != 0)
             {
@@ -316,14 +376,6 @@ namespace DataflowChannel
 
                     current.Head = channel.Head;
                 }
-                //// check the element in the correct place
-                //else if (channel.Storage[hash].Id != 0 && channel.Storage[hash].Id != hash)
-                //{
-                //    var tmp = channel.Storage[hash];
-
-                //    channel.Storage[tmp.Id] = tmp;
-                //    channel.Storage[hash]   = new ThreadData(_capacity);
-                //}
 
                 var thread = current.Storage[id];
 
@@ -333,7 +385,8 @@ namespace DataflowChannel
 
                 if (thread.Next == null)
                 {
-                    current.Reader = thread;
+                    current.ReaderLastId = id;
+                    current.WriterLastId = id;
                 }
 
                 // write new link
@@ -351,219 +404,6 @@ namespace DataflowChannel
             }
         }
 
-        //// -----------------------------
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private ThreadData GetStorage4(ChannelData data)
-        //{
-        //    unchecked
-        //    {
-        //        //var id = t_id;
-        //        var id = Thread.CurrentThread.ManagedThreadId;
-        //        var thread = data.Storage[id];
-
-        //        if (thread.IsReady)
-        //        {
-        //            return thread;
-        //        }
-
-        //        return GetStorage(data, id);
-        //    }
-        //}
-
-        //private ThreadData GetStorageEx4(ChannelData data, int id)
-        //{
-        //    unchecked
-        //    {
-        //        var storage = data.Storage;
-
-        //        if (id >= storage.Length)
-        //        {
-        //            storage = ResizeStorage(data, id);
-        //        }
-
-        //        var thread  = storage[id];
-
-        //        if (!thread.IsReady)
-        //        {
-        //            if (id == 0)
-        //            {
-        //                id = t_id = Interlocked.Add(ref t_ids, 1);
-
-        //                thread = storage[id];
-        //            }
-
-        //            thread.Next = data.Head;
-
-        //            while (Interlocked.CompareExchange(ref data.Head, thread, thread.Next) != thread.Next)
-        //            {
-        //                thread.Next = Volatile.Read(ref data.Head);
-        //            }
-
-        //            thread.IsReady = true;
-        //        }
-
-        //        return thread;
-        //    }
-        //}
-
-        //private ThreadData[] ResizeStorage4(ChannelData data, int size)
-        //{
-        //    // set lock
-        //    while (Interlocked.CompareExchange(ref data.SyncStorage, 1, 0) != 0)
-        //    {
-        //    }
-
-        //    try
-        //    {
-        //        var head    = Volatile.Read(ref data.Head);
-        //        var storage = Volatile.Read(ref data.Storage);
-
-        //        var len = storage.Length;
-
-        //        if (size < len)
-        //        {
-        //            return storage;
-        //        }
-
-        //        len = ((size % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE * 2;
-
-        //        var newStorage = new ThreadData[len];
-
-        //        Array.Copy(storage, newStorage, storage.Length);
-
-        //        // fill with empty Cabinets
-        //        for (var i = storage.Length; i < newStorage.Length; ++i)
-        //        {
-        //            newStorage[i] = new ThreadData(/*i,*/ _capacity);
-        //        }
-
-        //        // write new link
-        //        Volatile.Write(ref data.Storage, newStorage);
-
-        //        return newStorage;
-        //    }
-        //    finally
-        //    {
-        //        // unlock
-        //        data.SyncStorage = 0;
-        //    }
-        //}
-
-        //// ------------------------------
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private ThreadData GetStorage3(ChannelData data)
-        //{
-        //    //return data.Storage[0];
-        //    unchecked
-        //    {
-        //        var id = t_id;
-        //        var storage = data.Storage;
-        //        var thread = storage[id];
-
-        //        if (!thread.IsReady)
-        //        {
-        //            if (id == 0)
-        //            {
-        //                id = t_id = Interlocked.Add(ref t_ids, 1);
-
-        //                thread = storage[id];
-        //            }
-
-        //            if (id >= storage.Length)
-        //            {
-        //                storage = ResizeStorage(data, id);
-        //            }
-
-        //            thread.Next = data.Head;
-
-        //            while (Interlocked.CompareExchange(ref data.Head, thread, thread.Next) != thread.Next)
-        //            {
-        //                thread.Next = Volatile.Read(ref data.Head);
-        //            }
-
-        //            thread.IsReady = true;
-        //        }
-
-        //        return thread;
-        //    }
-        //}
-
-        //// -------------------------------
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private ThreadData GetStorage2(ChannelData data)
-        //{
-        //    //var id = Thread.GetCurrentProcessorId();
-        //    var id = t_id;
-        //    var storage = data.Storage;
-
-        //    if (id >= storage.Length || storage[id] == null)
-        //    {
-        //        if (id == 0)
-        //        {
-        //            id = t_id = Interlocked.Add(ref t_ids, 1);
-        //        }
-
-        //        storage = ResizeStorage2(data, new ThreadData(/*id, */_capacity));
-        //    }
-
-        //    return storage[id];
-        //}
-
-        //// 
-        //private ThreadData[] ResizeStorage2(ChannelData data, ThreadData thread)
-        //{
-        //    // set lock
-        //    while (Interlocked.CompareExchange(ref data.SyncStorage, 1, 0) != 0)
-        //    {
-        //    }
-
-        //    try
-        //    {
-        //        var head    = Volatile.Read(ref data.Head);
-        //        var storage = Volatile.Read(ref data.Storage);
-
-        //        thread.Next = head;
-        //        data.Head   = thread;
-
-        //        var id = thread.Id;
-        //        var len = storage.Length;
-
-        //        if (id < len)
-        //        {
-        //            storage[id] = thread;
-
-        //            return storage;
-        //        }
-
-        //        if (id > len)
-        //        {
-        //            len = id;
-        //        }
-
-        //        len = ((len % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE * 2;
-
-        //        var newStorage = new ThreadData[len];
-
-        //        Array.Copy(storage, newStorage, storage.Length);
-
-        //        // setup new thread
-        //        newStorage[id] = thread;
-
-        //        // write new link
-        //        Volatile.Write(ref data.Storage, newStorage);
-
-        //        return newStorage;
-        //    }
-        //    finally
-        //    {
-        //        // unlock
-        //        data.SyncStorage = 0;
-        //    }
-        //}
-
         #region ' Structures '
 
         private sealed class ChannelData
@@ -571,8 +411,7 @@ namespace DataflowChannel
             public ChannelData(int capacity)
             {
                 Storage = new ThreadData[capacity];
-                Head    = null;
-                Reader  = null;
+
                 Size    = capacity;
             }
 
@@ -587,8 +426,8 @@ namespace DataflowChannel
             private long _empty06;
             private long _empty07;
 
-            // Current reader position
-            public ThreadData Reader;
+            // Current reader operation number
+            public uint ReaderOperation;
             private long _empty08;
             private long _empty09;
             private long _empty10;
@@ -598,8 +437,8 @@ namespace DataflowChannel
             private long _empty14;
             private long _empty15;
 
-            // To synchronize threads when expanding the storage or setup new thread
-            public int SyncChannel;
+            // The writer id was reading in last time
+            public int ReaderLastId;
             private long _empty16;
             private long _empty17;
             private long _empty18;
@@ -609,8 +448,8 @@ namespace DataflowChannel
             private long _empty22;
             private long _empty23;
 
-            // For writers
-            public readonly ThreadData[] Storage;
+            // To synchronize threads when expanding the storage or setup new thread
+            public int SyncChannel;
             private long _empty24;
             private long _empty25;
             private long _empty26;
@@ -620,8 +459,8 @@ namespace DataflowChannel
             private long _empty30;
             private long _empty31;
 
-            // Hash divider
-            public readonly int Size;
+            // For writers
+            public readonly ThreadData[] Storage;
             private long _empty32;
             private long _empty33;
             private long _empty34;
@@ -630,6 +469,39 @@ namespace DataflowChannel
             private long _empty37;
             private long _empty38;
             private long _empty39;
+
+            // Hash divider
+            public readonly int Size;
+            private long _empty40;
+            private long _empty41;
+            private long _empty42;
+            private long _empty43;
+            private long _empty44;
+            private long _empty45;
+            private long _empty46;
+            private long _empty47;
+
+            // Current writer operation number
+            public int WriterOperation;
+            private long _empty48;
+            private long _empty49;
+            private long _empty50;
+            private long _empty51;
+            private long _empty52;
+            private long _empty53;
+            private long _empty54;
+            private long _empty55;
+
+            // The writer id was writing in last time
+            public int WriterLastId;
+            private long _empty56;
+            private long _empty57;
+            private long _empty58;
+            private long _empty59;
+            private long _empty60;
+            private long _empty61;
+            private long _empty62;
+            private long _empty63;
         }
 
         [DebuggerDisplay("Id:{Id}")]
@@ -725,7 +597,7 @@ namespace DataflowChannel
         {
             public CycleBufferSegmentMPOC(int capacity)
             {
-                ReaderMessages = new T[capacity];
+                ReaderMessages = new MessageItem[capacity];
                 WriterMessages = ReaderMessages;
             }
 
@@ -740,7 +612,7 @@ namespace DataflowChannel
             private long _empty06;
             private long _empty07;
 
-            public readonly T[] ReaderMessages;
+            public readonly MessageItem[] ReaderMessages;
             private long _empty08;
             private long _empty09;
             private long _empty10;
@@ -761,7 +633,7 @@ namespace DataflowChannel
             private long _empty22;
             private long _empty23;
 
-            public readonly T[] WriterMessages;
+            public readonly MessageItem[] WriterMessages;
             private long _empty24;
             private long _empty25;
             private long _empty26;
@@ -782,10 +654,30 @@ namespace DataflowChannel
             private long _empty38;
             private long _empty39;
 
+            // Back segment
+            public CycleBufferSegmentMPOC Back;
+            private long _empty40;
+            private long _empty41;
+            private long _empty42;
+            private long _empty43;
+            private long _empty44;
+            private long _empty45;
+            private long _empty46;
+            private long _empty47;
+
             public override string ToString()
             {
                 return this.GetHashCode().ToString();
             }
+        }
+
+        [DebuggerDisplay("Value:{Value}, Operation:{Operation}, Next:{Next}")]
+        private struct MessageItem
+        {
+            public T Value;
+            public uint Operation;
+            // Thread id that write next value
+            public int Next;
         }
 
         #endregion
