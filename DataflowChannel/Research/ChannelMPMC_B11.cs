@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace DataflowChannel_B1
+namespace DataflowChannel_B11
 {
     /// <summary>
     /// MPOC - Multiple Producer Multiple Consumer.
@@ -18,13 +18,13 @@ namespace DataflowChannel_B1
     public partial class ChannelMPMC<T>
     {
         // The default value that is used if the user has not specified a capacity.
-        private const int SEGMENT_CAPACITY = 64;
-        private const int OPERATION_CAPACITY = 4000;
+        private const int SEGMENT_CAPACITY = 32*1024;
+        private const int OPERATION_CAPACITY = 1;
         // Current segment size
         private readonly int _capacity;
         private ChannelData _channel;
 
-        public ChannelMPMC() : this(SEGMENT_CAPACITY)
+        public ChannelMPMC() : this(SEGMENT_CAPACITY * 8)
         { 
         }
 
@@ -40,14 +40,14 @@ namespace DataflowChannel_B1
             unchecked
             {
                 var channel = _channel;
-
-                // 7s
-                var operation = Interlocked.Add(ref channel.WriterOperation, 1);
-
-                // 3.6s
-                //var operation = ++channel.WriterOperation;
-
+                //var operation = Interlocked.Add(ref channel.WriterOperation, 1);
+                var operation = 2;
                 ref var data = ref channel.Storage[operation % OPERATION_CAPACITY];
+
+                Interlocked.CompareExchange(ref data.WriterSync, 0, 1);
+
+                data.WriterSync = 0;
+
                 var seg = data.Writer;
 
                 if (seg.WriterPosition == _capacity)
@@ -189,6 +189,7 @@ namespace DataflowChannel_B1
                 Head   = seg;
                 Reader = seg;
                 Writer = seg;
+                WriterSync = 0;
             }
 
             // head segment
@@ -199,6 +200,8 @@ namespace DataflowChannel_B1
 
             // current writer segment
             public CycleBufferSegment Writer;
+
+            public int WriterSync;
         }
 
         private sealed class CycleBufferSegment

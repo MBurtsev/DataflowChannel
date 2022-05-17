@@ -17,7 +17,6 @@ namespace DataflowChannel_B0
     /// </summary>
     public partial class ChannelMPMC<T>
     {
-        private const int THREADS_STORAGE_SIZE = 64;
         // The default value that is used if the user has not specified a capacity.
         private const int DEFAULT_CAPACITY = 32 * 1024;
         private const int DATA_CAPACITY = 1024;
@@ -34,8 +33,6 @@ namespace DataflowChannel_B0
         {
             _capacity = capacity;
             _channel = new ChannelData(capacity);
-
-            _channel.WriterOperation = 7893022;
         }
 
         public bool IsEmpty
@@ -55,16 +52,6 @@ namespace DataflowChannel_B0
                 var count = 0;
 
                 return count;
-            }
-        }
-
-        public int HZ
-        {
-            get
-            {
-                _channel.WriterOperation++;
-
-                return _channel.WriterOperation;
             }
         }
 
@@ -95,7 +82,7 @@ namespace DataflowChannel_B0
 
                 //if (seg.WriterPosition == _capacity)
                 //{
-                //    CycleBufferSegmentOPOC<T> next;
+                //    CycleBufferSegment next;
 
                 //    var flag = seg.Next == null;
 
@@ -109,7 +96,7 @@ namespace DataflowChannel_B0
                 //    }
                 //    else
                 //    {
-                //        next = new CycleBufferSegmentOPOC<T>(_capacity)
+                //        next = new CycleBufferSegment(_capacity)
                 //        {
                 //            Next = seg.Next
                 //        };
@@ -211,15 +198,15 @@ namespace DataflowChannel_B0
         {
             public ChannelData(int capacity)
             {
-                Storage = new CycleBufferOPOC<T>[DATA_CAPACITY];
+                Storage = new CycleBuffer[DATA_CAPACITY];
 
                 for (var i = 0; i < DATA_CAPACITY; i++)
                 {
-                    Storage[i] = new CycleBufferOPOC<T>(capacity);
+                    Storage[i] = new CycleBuffer(capacity);
                 }
             }
 
-            public readonly CycleBufferOPOC<T>[] Storage;
+            public readonly CycleBuffer[] Storage;
             private long _empty00;
             private long _empty01;
             private long _empty02;
@@ -250,11 +237,11 @@ namespace DataflowChannel_B0
             private long _empty23;
         }
 
-        private sealed class CycleBufferOPOC<T>
+        private sealed class CycleBuffer
         {
-            public CycleBufferOPOC(int capacity)
+            public CycleBuffer(int capacity)
             {
-                var seg = new CycleBufferSegmentOPOC<T>(capacity);
+                var seg = new CycleBufferSegment(capacity);
 
                 Head   = seg;
                 Reader = seg;
@@ -262,42 +249,18 @@ namespace DataflowChannel_B0
             }
 
             // head segment
-            public CycleBufferSegmentOPOC<T> Head;
-            private long _empty00;
-            private long _empty01;
-            private long _empty02;
-            private long _empty03;
-            private long _empty04;
-            private long _empty05;
-            private long _empty06;
-            private long _empty07;
+            public CycleBufferSegment Head;
 
             // current reader segment
-            public CycleBufferSegmentOPOC<T> Reader;
-            private long _empty08;
-            private long _empty09;
-            private long _empty10;
-            private long _empty11;
-            private long _empty12;
-            private long _empty13;
-            private long _empty14;
-            private long _empty15;
+            public CycleBufferSegment Reader;
 
             // current writer segment
-            public CycleBufferSegmentOPOC<T> Writer;
-            private long _empty16;
-            private long _empty17;
-            private long _empty18;
-            private long _empty19;
-            private long _empty20;
-            private long _empty21;
-            private long _empty22;
-            private long _empty23;
+            public CycleBufferSegment Writer;
         }
 
-        private sealed class CycleBufferSegmentOPOC<T>
+        private sealed class CycleBufferSegment
         {
-            public CycleBufferSegmentOPOC(int capacity)
+            public CycleBufferSegment(int capacity)
             {
                 ReaderMessages = new T[capacity];
                 WriterMessages = ReaderMessages;
@@ -305,61 +268,16 @@ namespace DataflowChannel_B0
 
             // Reading thread position
             public int ReaderPosition;
-            private long _empty00; // To prevent thread friction on the databus.
-            private long _empty01; // To improve performance
-            private long _empty02;
-            private long _empty03;
-            private long _empty04;
-            private long _empty05;
-            private long _empty06;
-            private long _empty07;
 
             public T[] ReaderMessages;
-            private long _empty08;
-            private long _empty09;
-            private long _empty10;
-            private long _empty11;
-            private long _empty12;
-            private long _empty13;
-            private long _empty14;
-            private long _empty15;
 
             // Writing thread position
             public int WriterPosition;
-            private long _empty16;
-            private long _empty17;
-            private long _empty18;
-            private long _empty19;
-            private long _empty20;
-            private long _empty21;
-            private long _empty22;
-            private long _empty23;
 
             public T[] WriterMessages;
-            private long _empty24;
-            private long _empty25;
-            private long _empty26;
-            private long _empty27;
-            private long _empty28;
-            private long _empty29;
-            private long _empty30;
-            private long _empty31;
 
             // Next segment
-            public CycleBufferSegmentOPOC<T> Next;
-            private long _empty32;
-            private long _empty33;
-            private long _empty34;
-            private long _empty35;
-            private long _empty36;
-            private long _empty37;
-            private long _empty38;
-            private long _empty39;
-
-            public override string ToString()
-            {
-                return this.GetHashCode().ToString();
-            }
+            public CycleBufferSegment Next;
         }
 
         #endregion

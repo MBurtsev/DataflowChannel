@@ -29,13 +29,29 @@ namespace Example
             //var channel = new ChannelOPOC<int>();
 
             // Attention: No more than one consumer
-            var channel = new ChannelMPOCnoOrder<int>();
-            //var channel = new DataflowChannelA.ChannelMPOC<int>();
+            //var channel = new ChannelMPOCnoOrder<int>();
 
             // No limits
-            //var channel = new ChannelMPMC<int>();
-            //var channel = new DataflowChannel_B1.ChannelMPMC<int>();
+            //var channel = new DataflowChannel_B0.ChannelMPMC<int>();
+            ////var channel = new DataflowChannel_B1.ChannelMPMC<int>();
+            //var channel = new DataflowChannel_B11.ChannelMPMC<int>();
             //var channel = new DataflowChannel_B2.ChannelMPMC<int>();
+            //var channel = new DataflowChannel_A.ChannelMPMC<int>();
+            var channel = new ChannelMPMC<int>();
+
+            if (producers == 0)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    channel.Write(i);
+                }
+
+                channel.Write(-1);
+            }
+
+            // Jit
+            channel.Write(-1);
+            channel.TryRead(out _);
 
             // Run producers
             for (var n = 0; n < producers; n++)
@@ -86,7 +102,7 @@ namespace Example
                             {
                                 exit++;
 
-                                if (exit == producers)
+                                if (exit == producers || producers == 0)
                                 {
                                     break;
                                 }

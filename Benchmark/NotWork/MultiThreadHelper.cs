@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Benchmark
 {
-    public class MultiThreadBench
+    public class MultiThreadHelper
     {
         // Signal to start work
         private bool _canStart = false;
@@ -16,12 +17,16 @@ namespace Benchmark
         private int _jobs = 0;
         private readonly bool _useThreadPool;
 
-        public MultiThreadBench():this(false)
+        public MultiThreadHelper():this(false)
         {
         }
-        public MultiThreadBench(bool useThreadPool)
+        public MultiThreadHelper(bool useThreadPool)
         {
             _useThreadPool = useThreadPool;
+        }
+        ~MultiThreadHelper()
+        {
+
         }
 
         public void AddJob(Action action)
@@ -46,9 +51,15 @@ namespace Benchmark
 
         public void WaitReady()
         {
+            //Debugger.Log(0, "Err", _jobs.ToString()); ; //.WriteLine(_jobs);
+
+            //Debugger.Log(3, "Err", $"ready:{Volatile.Read(ref _ready)}, jobs:{_jobs}");
+            //Console.WriteLine($"ready:{Volatile.Read(ref _ready)}, jobs:{_jobs}");
+
             // Wait all threads are ready
             while (Volatile.Read(ref _ready) < _jobs)
             {
+                //Debugger.Log(0, "Err", Volatile.Read(ref _ready).ToString());
             }
         }
 
@@ -60,6 +71,12 @@ namespace Benchmark
             {
                 Thread.Yield();
             }
+        }
+
+        public void Stop()
+        {
+            Volatile.Write(ref _complate, int.MaxValue - _jobs);
+            Volatile.Write(ref _ready, int.MaxValue - _jobs);
         }
 
         private void Job(Action action)

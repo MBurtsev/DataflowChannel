@@ -1,4 +1,5 @@
-﻿using BenchmarkDotNet.Running;
+﻿using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
 using System;
 
 namespace Benchmark
@@ -7,15 +8,14 @@ namespace Benchmark
     {
         public static void Main(string[] args)
         {
-            //var ben = new OPOCBench();
-            //ben.ReadSetup();
-            //ben.Read();
-            //ben.WriteSetup();
-            //ben.Write();
-            //ben.ReadWriteSetup();
-            //ben.ReadWrite();
+            // For debug
+            //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new DebugInProcessConfig());
 
+            // ChannelOPOC
             BenchmarkRunner.Run<OPOCBench>();
+
+            // ConcurrentQueue
+            //BenchmarkRunner.Run<ConcurrentQueueBench>();
 
             Console.WriteLine("Press any key for exit");
             Console.ReadKey();

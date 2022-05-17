@@ -1,106 +1,125 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using DataflowChannel;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Benchmark
 {
     [Config(typeof(BenchConfig))]
-    //[DisassemblyDiagnoser(printSource: true)]
-    //[HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.BranchInstructions)]
     public class OPOCBench
     {
         private const int COUNT = 100_000_000;
-        private MultiThreadBench _bench;
+        private const int PRODUCERS = 1;
+        private const int CONSUMERS = 1;
+        private const int THREADS = PRODUCERS + CONSUMERS;
         private ChannelOPOC<int> _channel;
 
         [IterationSetup(Target = nameof(Write))]
         public void WriteSetup()
         {
-            Setup(1, 0);
+            _channel = new ChannelOPOC<int>();
         }
-
         [Benchmark(OperationsPerInvoke = COUNT)]
         public void Write()
         {
-            _bench.Start();
+            var ready = 0;
+
+            for (var n = 0; n < PRODUCERS; n++)
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    for (var i = 0; i < COUNT; i++)
+                    {
+                        _channel.Write(1);
+                    }
+
+                    Interlocked.Increment(ref ready);
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
+
+            while (Volatile.Read(ref ready) < PRODUCERS)
+            {
+                Thread.Yield();
+            }
         }
+
 
         [IterationSetup(Target = nameof(Read))]
         public void ReadSetup()
         {
-            Setup(0, 1);
-        }
+            _channel = new ChannelOPOC<int>();
 
+            for (var i = 0; i < COUNT; i++)
+            {
+                _channel.Write(1);
+            }
+        }
         [Benchmark(OperationsPerInvoke = COUNT)]
         public void Read()
         {
-            _bench.Start();
+            var ready = 0;
+
+            for (var n = 0; n < CONSUMERS; n++)
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    for (var i = 0; i < COUNT; i++)
+                    {
+                        _channel.TryRead(out _);
+                    }
+
+                    Interlocked.Increment(ref ready);
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
+
+            while (Volatile.Read(ref ready) < CONSUMERS)
+            {
+                Thread.Yield();
+            }
         }
+
 
         [IterationSetup(Target = nameof(ReadWrite))]
         public void ReadWriteSetup()
         {
-            Setup(1, 1);
+            _channel = new ChannelOPOC<int>();
         }
-
-        [Benchmark(OperationsPerInvoke = COUNT)]
+        [Benchmark(OperationsPerInvoke = COUNT * THREADS)]
         public void ReadWrite()
         {
-            _bench.Start();
-        }
+            var ready = 0;
 
-        private void WriteJob()
-        {
-            var channel = _channel;
-
-            for (int i = 0; i < COUNT; i++)
+            for (var n = 0; n < PRODUCERS; n++)
             {
-                channel.Write(1);
-            }
-        }
-
-        private void ReadJob()
-        {
-            var channel = _channel;
-
-            for (int i = 0; i < COUNT; i++)
-            {
-                channel.TryRead(out _);
-            }
-        }
-
-        #region ' Helper '
-
-        void Setup(int producers, int consumers)
-        {
-            _bench = new MultiThreadBench();
-            _channel = new ChannelOPOC<int>();
-
-            var jobs = producers + consumers;
-
-            if (producers == 0)
-            {
-                for (var i = 0; i < consumers * jobs; i++)
+                Task.Factory.StartNew(() =>
                 {
-                    _channel.Write(1);
-                }
+                    for (var i = 0; i < COUNT; i++)
+                    {
+                        _channel.Write(1);
+                    }
+
+                    Interlocked.Increment(ref ready);
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
 
-            // Run producers
-            for (var n = 0; n < producers; n++)
+            for (var n = 0; n < CONSUMERS; n++)
             {
-                _bench.AddJob(WriteJob);
+                Task.Factory.StartNew(() =>
+                {
+                    for (var i = 0; i < COUNT; i++)
+                    {
+                        _channel.TryRead(out _);
+                    }
+
+                    Interlocked.Increment(ref ready);
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
 
-            // Run consumers
-            for (var n = 0; n < consumers; n++)
+            while (Volatile.Read(ref ready) < THREADS)
             {
-                _bench.AddJob(ReadJob);
+                Thread.Yield();
             }
-
-            _bench.WaitReady();
         }
-
-        #endregion
     }
 }

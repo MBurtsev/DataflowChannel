@@ -1,12 +1,11 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
-using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace DataflowChannel_B2
+namespace DataflowChannel_B1
 {
     /// <summary>
     /// MPOC - Multiple Producer Multiple Consumer.
@@ -19,21 +18,20 @@ namespace DataflowChannel_B2
     public partial class ChannelMPMC<T>
     {
         // The default value that is used if the user has not specified a capacity.
-        private const int SEGMENT_CAPACITY = 1024*2;
-        private const int MESSAGES_CAPACITY = 32;
-        private const int OPERATION_CAPACITY = 1024;
+        private const int SEGMENT_CAPACITY = 32*1024;
+        private const int OPERATION_CAPACITY = 1;
         // Current segment size
         private readonly int _capacity;
         private ChannelData _channel;
 
-        public ChannelMPMC() : this(MESSAGES_CAPACITY)
+        public ChannelMPMC() : this(SEGMENT_CAPACITY * 8)
         { 
         }
 
         public ChannelMPMC(int capacity)
         {
             _capacity = capacity;
-            _channel = new ChannelData();
+            _channel = new ChannelData(capacity);
         }
 
         public void Write(T value)
@@ -45,13 +43,13 @@ namespace DataflowChannel_B2
                 var operation = Interlocked.Add(ref channel.WriterOperation, 1);
 
                 ref var data = ref channel.Storage[operation % OPERATION_CAPACITY];
-                ref var seg  = ref data.Segments[data.Writer];
+                var seg = data.Writer;
 
                 if (seg.WriterPosition == _capacity)
                 {
-                    int next;
+                    CycleBufferSegment next;
 
-                    var flag = seg.Next == 0;
+                    var flag = seg.Next == null;
 
                     if (!flag && seg.Next != data.Reader)
                     {
@@ -63,19 +61,7 @@ namespace DataflowChannel_B2
                     }
                     else
                     {
-                        next = data.Count++;
-
-                        // resize segments
-                        if (next == data.Segments.Length)
-                        {
-                            var tmp = new CycleBufferSegment[next * 2];
-                            
-                            Array.Copy(data.Segments, tmp, data.Segments.Length);
-
-                            data.Segments = tmp;
-                        }
-
-                        data.Segments[next] = new CycleBufferSegment(true)
+                        next = new CycleBufferSegment(_capacity)
                         {
                             Next = seg.Next
                         };
@@ -83,10 +69,8 @@ namespace DataflowChannel_B2
                         seg.Next = next;
                     }
 
-                    seg = ref data.Segments[next];
-
-                    seg.Messages[0] = value;
-                    seg.WriterPosition = 1;
+                    next.WriterMessages[0] = value;
+                    next.WriterPosition = 1;
 
                     data.Writer = next;
 
@@ -95,7 +79,7 @@ namespace DataflowChannel_B2
 
                 var pos = seg.WriterPosition;
 
-                seg.Messages[pos] = value;
+                seg.WriterMessages[pos] = value;
                 seg.WriterPosition = pos + 1;
             }
         }
@@ -174,13 +158,13 @@ namespace DataflowChannel_B2
 
         private sealed class ChannelData
         {
-            public ChannelData()
+            public ChannelData(int capacity)
             {
                 Storage = new CycleBuffer[OPERATION_CAPACITY];
 
                 for (var i = 0; i < OPERATION_CAPACITY; i++)
                 {
-                    Storage[i] = new CycleBuffer(true);
+                    Storage[i] = new CycleBuffer(capacity);
                 }
             }
 
@@ -191,51 +175,53 @@ namespace DataflowChannel_B2
             public int WriterOperation;
         }
 
-        private struct CycleBuffer
+        private /*sealed class*/ struct CycleBuffer
         {
-            public CycleBuffer(bool flag)
+            public CycleBuffer(int capacity)
             {
-                Count    = 1;
-                Head     = 0;
-                Reader   = 0;
-                Writer   = 0;
-                Segments = new CycleBufferSegment[SEGMENT_CAPACITY];
+                var seg = new CycleBufferSegment(capacity);
 
-                Segments[0] = new CycleBufferSegment(true);
+                Head   = seg;
+                Reader = seg;
+                Writer = seg;
             }
 
-            public int Count;
-
             // head segment
-            public int Head;
+            public CycleBufferSegment Head;
 
             // current reader segment
-            public int Reader;
+            public CycleBufferSegment Reader;
 
             // current writer segment
-            public int Writer;
-
-            public CycleBufferSegment[] Segments;
+            public CycleBufferSegment Writer;
         }
 
-        private struct CycleBufferSegment
+        private sealed class CycleBufferSegment
         {
-            public CycleBufferSegment(bool flag)
+            public CycleBufferSegment(int capacity)
             {
-                ReaderPosition = 0;
-                WriterPosition = 0;
-                Next           = 0;
-                Messages       = new T[MESSAGES_CAPACITY];
+                var mes = new T[capacity];
+                
+                ReaderMessages = mes;
+                WriterMessages = mes;
             }
 
             // Reading thread position
             public int ReaderPosition;
+
+            public T[] ReaderMessages;
             // Writing thread position
             public int WriterPosition;
-            // Next segment
-            public int Next;
 
-            public T[] Messages;
+            public T[] WriterMessages;
+
+            // Next segment
+            public CycleBufferSegment Next;
+
+            public override string ToString()
+            {
+                return this.GetHashCode().ToString();
+            }
         }
 
         #endregion

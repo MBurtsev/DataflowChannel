@@ -44,8 +44,8 @@ namespace Benchmark
 
             Add(Job.MediumRun
                 .WithLaunchCount(1)
-                .WithWarmupCount(3)
-                .WithIterationCount(5)
+                .WithWarmupCount(10)
+                .WithIterationCount(10)
                 .WithInvocationCount(1)
                 .WithUnrollFactor(1)
                 );

@@ -1,46 +1,37 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
-using DataflowChannel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 
-namespace DataflowChannel
+// Here is the working class, but not so fast as I want
+
+namespace DataflowChannelB
 {
     /// <summary>
-    ///  - One Producer One Consumer.
-    /// Channel to use only two threads at the same time. 
+    /// MPOC - Multiple Producer One Consumer.
     /// At the core a cycle buffer that implements a producer-consumer pattern. 
-    /// Fully wait-free implementation without any CAS operations.
+    /// Synchronization of writer threads only with Interlocked.Add.
+    /// Reader fully lock-free\wait-free.
     /// </summary>
-    [DebuggerDisplay("Count:{Count}")]
-    public partial class ChannelOPOC<T>
+    public partial class ChannelMPOC<T>
     {
-        // Segment size
-        private const int SEGMENT_CAPACITY = 32 * 1024;
+        // The default value that is used if the user has not specified a capacity.
+        private const int DEFAULT_CAPACITY = 32 * 1024;
+        private readonly int _capacity;
 
-        // Channel data
+        // Chennel data
         private CycleBuffer _data;
 
-        public ChannelOPOC() : this(SEGMENT_CAPACITY * 8)
-        {
+        public ChannelMPOC() : this(DEFAULT_CAPACITY)
+        { 
         }
 
-        public ChannelOPOC(int capacity)
+        public ChannelMPOC(int capacity)
         {
-            _data = new CycleBuffer();
-
-            var seg = _data.Head;
-            var len = capacity % SEGMENT_CAPACITY + 1;
-
-            for (var i = 0; i < len; i++)
-            {
-                seg.Next = new CycleBufferSegment();
-
-                seg = seg.Next;
-            }
+            _data   = new CycleBuffer(capacity);
+            _capacity = capacity;
         }
-
 
         public bool IsEmpty
         {
@@ -89,9 +80,9 @@ namespace DataflowChannel
             unchecked
             {
                 var seg = _data.Writer;
-                var pos = seg.WriterPosition;
+                var pos = Interlocked.Add(ref seg.WriterSync, 1);
 
-                if (pos == SEGMENT_CAPACITY)
+                if (pos == _capacity + 1)
                 {
                     CycleBufferSegment next;
 
@@ -107,7 +98,7 @@ namespace DataflowChannel
                     }
                     else
                     {
-                        next = new CycleBufferSegment()
+                        next = new CycleBufferSegment(_capacity)
                         {
                             Next = seg.Next
                         };
@@ -117,14 +108,28 @@ namespace DataflowChannel
 
                     next.WriterMessages[0] = value;
                     next.WriterPosition = 1;
+                    next.WriterSync = 1;
 
-                    _data.Writer = next;
+                    seg.WriterPosition = _capacity;
+
+                    Volatile.Write(ref _data.Writer, next);
+
+                    return;
+                }
+                else if (pos > _capacity + 1)
+                {
+                    while (Volatile.Read(ref _data.Writer) == seg)
+                    {
+                    }
+
+                    Write(value);
 
                     return;
                 }
 
-                seg.WriterMessages[pos] = value;
-                seg.WriterPosition = pos + 1;
+                seg.WriterMessages[pos - 1] = value;
+
+                Interlocked.Add(ref seg.WriterPosition, 1);
             }
         }
 
@@ -132,12 +137,11 @@ namespace DataflowChannel
         {
             unchecked
             {
-                var data = _data;
-                var seg = data.Reader;
+                var seg = _data.Reader;
 
-                if (seg.ReaderPosition == SEGMENT_CAPACITY)
+                if (seg.ReaderPosition == _capacity)
                 {
-                    if (seg == data.Writer)
+                    if (seg == _data.Writer)
                     {
                         value = default;
 
@@ -152,14 +156,14 @@ namespace DataflowChannel
                     }
                     else
                     {
-                        next = data.Head;
+                        next = _data.Head;
                     }
 
                     next.ReaderPosition = 0;
 
                     seg = next;
 
-                    data.Reader = seg;
+                    _data.Reader = seg;
                 }
 
                 // reader position check
@@ -180,27 +184,27 @@ namespace DataflowChannel
 
         public void Clear()
         {
-            _data = new CycleBuffer();
+            _data = new CycleBuffer(_capacity);
         }
 
         #region ' Structures '
 
         private sealed class CycleBuffer
         {
-            public CycleBuffer()
+            public CycleBuffer(int capacity)
             {
-                var seg = new CycleBufferSegment();
+                var seg = new CycleBufferSegment(capacity);
 
-                Head   = seg;
+                Head = seg;
                 Reader = seg;
                 Writer = seg;
             }
 
             // head segment
             public CycleBufferSegment Head;
+
             // current reader segment
             public CycleBufferSegment Reader;
-            EmptySpace _empty00;
 
             // current writer segment
             public CycleBufferSegment Writer;
@@ -208,24 +212,24 @@ namespace DataflowChannel
 
         private sealed class CycleBufferSegment
         {
-            public CycleBufferSegment()
+            public CycleBufferSegment(int capacity)
             {
-                ReaderMessages = new T[SEGMENT_CAPACITY];
+                ReaderMessages = new T[capacity];
                 WriterMessages = ReaderMessages;
             }
 
             // Reading thread position
             public int ReaderPosition;
-            public T[] ReaderMessages;
 
-            EmptySpace _empty00;
+            public T[] ReaderMessages;
 
             // Writing thread position
             public int WriterPosition;
+
+            // For sync writers
+            public int WriterSync;
+
             public T[] WriterMessages;
-
-            EmptySpace _empty01;
-
             // Next segment
             public CycleBufferSegment Next;
 
@@ -236,5 +240,6 @@ namespace DataflowChannel
         }
 
         #endregion
+
     }
 }
