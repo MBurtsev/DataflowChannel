@@ -8,11 +8,11 @@ Wait-Free implementation without any CAS operations.
 
 Performance:
 
-| Threads | Write op\s | Read op\s |
-| ------------- | ------------- | ------------- |
-| Producer: 0, Consumer: 1 | nope |  151M|
-| Producer: 1, Consumer: 0 | 150M | nope |
-| Producer: 1, Consumer: 1 | 170M |  155M |
+|    Method |     Mean |     Error |    StdDev |      Min |      Max |          Op/s |
+|---------- |---------:|----------:|----------:|---------:|---------:|--------------:|
+|     Write | 5.821 ns | 0.1559 ns | 0.1031 ns | 5.683 ns | 5.953 ns | 171,780,592.1 |
+|      Read | 4.893 ns | 0.0888 ns | 0.0588 ns | 4.812 ns | 5.003 ns | 204,367,948.0 |
+| ReadWrite | 3.847 ns | 1.6445 ns | 0.9786 ns | 2.366 ns | 5.435 ns | 259,972,854.8 |
 
 ## MPOC No Order - Multiple Producers One Consumer
 Producers use spin lock for initialization thread only once. 
