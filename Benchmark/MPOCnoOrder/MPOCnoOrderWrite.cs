@@ -20,6 +20,7 @@ namespace DataflowBench.MPOCnoOrder
         {
             _channel = new ChannelMPOCnoOrder<int>();
         }
+
         [Benchmark(OperationsPerInvoke = COUNT)]
         public void Write()
         {

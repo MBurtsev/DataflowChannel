@@ -16,7 +16,8 @@ namespace Benchmark.Temp
         [GlobalSetup]
         public void Setup()
         {
-            System.Diagnostics.Debugger.Launch();
+            // For debug
+            //System.Diagnostics.Debugger.Launch();
         }
 
         [IterationSetup(Target = nameof(Write))]
