@@ -1,24 +1,19 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
+using DataflowBench.Helper;
 using DataflowChannel;
+using System;
 
-namespace Benchmark.Temp
+namespace DataflowBench.Temp
 {
     [Config(typeof(BenchConfig))]
     //[DisassemblyDiagnoser(printSource: true)]
     //[HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.BranchInstructions)]
-    public class OPOCBench
+    public class OPOCBenchWrite
     {
         private const int COUNT = 100_000_000;
         private MultiThreadHelper _bench;
         private ChannelOPOC<int> _channel;
-
-        [GlobalSetup]
-        public void Setup()
-        {
-            // For debug
-            //System.Diagnostics.Debugger.Launch();
-        }
 
         [IterationSetup(Target = nameof(Write))]
         public void WriteSetup()
@@ -32,33 +27,9 @@ namespace Benchmark.Temp
             _bench.Start();
         }
 
-        [IterationSetup(Target = nameof(Read))]
-        public void ReadSetup()
+        private void WriteJob(ChannelOPOC<int> channel)
         {
-            Setup(0, 1);
-        }
-
-        [Benchmark(OperationsPerInvoke = COUNT)]
-        public void Read()
-        {
-            _bench.Start();
-        }
-
-        [IterationSetup(Target = nameof(ReadWrite))]
-        public void ReadWriteSetup()
-        {
-            Setup(1, 1);
-        }
-
-        [Benchmark(OperationsPerInvoke = COUNT)]
-        public void ReadWrite()
-        {
-            _bench.Start();
-        }
-
-        private void WriteJob()
-        {
-            var channel = _channel;
+            //var channel = _channel;
 
             for (int i = 0; i < COUNT; i++)
             {
@@ -66,9 +37,9 @@ namespace Benchmark.Temp
             }
         }
 
-        private void ReadJob()
+        private void ReadJob(ChannelOPOC<int> channel)
         {
-            var channel = _channel;
+            //var channel = _channel;
 
             for (int i = 0; i < COUNT; i++)
             {
@@ -80,11 +51,6 @@ namespace Benchmark.Temp
 
         void Setup(int producers, int consumers)
         {
-            if (_bench != null)
-            {
-                _bench.Stop();
-            }
-
             _bench = new MultiThreadHelper();
             _channel = new ChannelOPOC<int>();
 
@@ -92,7 +58,7 @@ namespace Benchmark.Temp
 
             if (producers == 0)
             {
-                for (var i = 0; i < consumers * jobs; i++)
+                for (var i = 0; i < consumers * COUNT; i++)
                 {
                     _channel.Write(1);
                 }
@@ -101,13 +67,13 @@ namespace Benchmark.Temp
             // Run producers
             for (var n = 0; n < producers; n++)
             {
-                _bench.AddJob(WriteJob);
+                _bench.AddJob(() => WriteJob(_channel));
             }
 
             // Run consumers
             for (var n = 0; n < consumers; n++)
             {
-                _bench.AddJob(ReadJob);
+                _bench.AddJob(() => ReadJob(_channel));
             }
 
             _bench.WaitReady();

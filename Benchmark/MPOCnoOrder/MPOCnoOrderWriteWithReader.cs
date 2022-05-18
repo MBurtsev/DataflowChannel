@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace DataflowBench.MPOCnoOrder
 {
     [Config(typeof(BenchConfigWithTotal))]
-    public class MPOCnoOrderWrite
+    public class MPOCnoOrderWriteWithReader
     {
         private const int COUNT = 100_000_000;
         private ChannelMPOCnoOrder<int> _channel;
@@ -18,14 +18,14 @@ namespace DataflowBench.MPOCnoOrder
         [Params(1,2,4,8)]
         public int Threads { get; set; }
 
-        [IterationSetup(Target = nameof(Write))]
+        [IterationSetup(Target = nameof(WriteWithReader))]
         public void WriteSetup()
         {
             _channel = new ChannelMPOCnoOrder<int>();
         }
 
         [Benchmark(OperationsPerInvoke = COUNT)]
-        public void Write()
+        public void WriteWithReader()
         {
             var ready = 0;
 
@@ -43,10 +43,19 @@ namespace DataflowBench.MPOCnoOrder
                 }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
 
+            // Launch cunsumer
+            Task.Factory.StartNew(() =>
+            {
+                for (var i = 0; i < COUNT * Threads; i++)
+                {
+                    _channel.TryRead(out _);
+                }
+
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
             // Wait until all write operations are completed
             while (Volatile.Read(ref ready) < Threads)
             {
-                Thread.Yield();
             }
         }
     }

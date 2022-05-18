@@ -1,25 +1,21 @@
-﻿using BenchmarkDotNet.Configs;
+﻿// Maksim Burtsev https://github.com/MBurtsev
+// Licensed under the MIT license.
+
+using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using DataflowBench.MPOCnoOrder;
+using DataflowBench.Temp;
 using System;
 
-namespace Benchmark
+namespace DataflowBench
 {
     public class Program
     {
         public static void Main(string[] args)
         {
-            // Demonstrate BDN freeze problem
-            //BenchmarkRunner.Run<Benchmark.Temp.OPOCBench>();
-            BenchmarkRunner.Run<Benchmark.Temp.OPOCBenchWrite>();
-            // But bench code works fine
-            //var ben = new Benchmark.Temp.OPOCBench();
-            //ben.ReadSetup();
-            //ben.Read();
-
-            //var ben = new Benchmark.Temp.OPOCBenchWrite();
-            //ben.Write();
-
+            // Temp
+            BenchmarkRunner.Run<MPOCnoOrderWriteA>();
+            BenchmarkRunner.Run<MPOCnoOrderWriteB>();
 
             // For debug
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new DebugInProcessConfig());

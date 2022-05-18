@@ -1,10 +1,14 @@
-﻿using BenchmarkDotNet.Attributes;
+﻿// Maksim Burtsev https://github.com/MBurtsev
+// Licensed under the MIT license.
+
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
+using DataflowBench.Helper;
 using DataflowChannel;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Benchmark
+namespace DataflowBench
 {
     [Config(typeof(BenchConfig))]
     public class OPOCBench

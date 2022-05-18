@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Benchmark
+namespace DataflowBench.Helper
 {
     public class MultiThreadHelper
     {
@@ -18,7 +16,7 @@ namespace Benchmark
         private int _jobs = 0;
         private readonly bool _useThreadPool;
 
-        public MultiThreadHelper():this(false)
+        public MultiThreadHelper() : this(false)
         {
         }
         public MultiThreadHelper(bool useThreadPool)
@@ -29,21 +27,18 @@ namespace Benchmark
         public void AddJob(Action action)
         {
             _jobs++;
-            Console.WriteLine($"Jod added, jobs:{_jobs}");
 
             if (_useThreadPool)
             {
                 Task.Factory.StartNew(() =>
                 {
                     Job(action);
-                }, 
+                },
                 CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
             else
             {
-                var thread = new Thread(() => Job(action));
-
-                thread.Start();
+                new Thread(() => Job(action)).Start();
             }
         }
 
@@ -52,6 +47,7 @@ namespace Benchmark
         {
             while (Volatile.Read(ref _ready) < _jobs)
             {
+                Thread.Yield();
             }
         }
 
@@ -59,36 +55,22 @@ namespace Benchmark
         {
             Volatile.Write(ref _canStart, true);
 
-            Console.WriteLine($"Bench begin ready threads:{_ready}");
-
             while (Volatile.Read(ref _complate) < _jobs)
             {
+                Thread.Yield();
             }
-
-            Console.WriteLine($"Bench done");
-        }
-
-        public void Stop()
-        {
-            Volatile.Write(ref _complate, int.MaxValue - _jobs);
-            Volatile.Write(ref _ready, int.MaxValue - _jobs);
         }
 
         private void Job(Action action)
         {
             Interlocked.Add(ref _ready, 1);
 
-            Console.WriteLine($"Thread ready:{Thread.CurrentThread.ManagedThreadId}");
-
             while (!Volatile.Read(ref _canStart))
             {
+                Thread.Yield();
             }
 
-            Console.WriteLine($"Thread begin:{Thread.CurrentThread.ManagedThreadId}");
-
             action();
-
-            Console.WriteLine($"Thread done:{Thread.CurrentThread.ManagedThreadId}");
 
             Interlocked.Add(ref _complate, 1);
         }
