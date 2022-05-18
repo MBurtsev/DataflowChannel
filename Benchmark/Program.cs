@@ -10,11 +10,15 @@ namespace Benchmark
         public static void Main(string[] args)
         {
             // Demonstrate BDN freeze problem
-            // BenchmarkRunner.Run<Benchmark.Temp.OPOCBench>();
+            //BenchmarkRunner.Run<Benchmark.Temp.OPOCBench>();
+            BenchmarkRunner.Run<Benchmark.Temp.OPOCBenchWrite>();
             // But bench code works fine
             //var ben = new Benchmark.Temp.OPOCBench();
             //ben.ReadSetup();
             //ben.Read();
+
+            //var ben = new Benchmark.Temp.OPOCBenchWrite();
+            //ben.Write();
 
 
             // For debug
@@ -24,7 +28,7 @@ namespace Benchmark
             //BenchmarkRunner.Run<OPOCBench>();
 
             // ChannelMPOCnoOrder
-            BenchmarkRunner.Run<MPOCnoOrderWrite>();
+            //BenchmarkRunner.Run<MPOCnoOrderWrite>();
 
             // ConcurrentQueue
             //BenchmarkRunner.Run<ConcurrentQueueBench>();

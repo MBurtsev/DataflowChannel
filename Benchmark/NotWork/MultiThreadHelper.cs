@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,14 +25,11 @@ namespace Benchmark
         {
             _useThreadPool = useThreadPool;
         }
-        ~MultiThreadHelper()
-        {
-
-        }
 
         public void AddJob(Action action)
         {
             _jobs++;
+            Console.WriteLine($"Jod added, jobs:{_jobs}");
 
             if (_useThreadPool)
             {
@@ -49,17 +47,11 @@ namespace Benchmark
             }
         }
 
+        // Wait all threads are ready
         public void WaitReady()
         {
-            //Debugger.Log(0, "Err", _jobs.ToString()); ; //.WriteLine(_jobs);
-
-            //Debugger.Log(3, "Err", $"ready:{Volatile.Read(ref _ready)}, jobs:{_jobs}");
-            //Console.WriteLine($"ready:{Volatile.Read(ref _ready)}, jobs:{_jobs}");
-
-            // Wait all threads are ready
             while (Volatile.Read(ref _ready) < _jobs)
             {
-                //Debugger.Log(0, "Err", Volatile.Read(ref _ready).ToString());
             }
         }
 
@@ -67,10 +59,13 @@ namespace Benchmark
         {
             Volatile.Write(ref _canStart, true);
 
+            Console.WriteLine($"Bench begin ready threads:{_ready}");
+
             while (Volatile.Read(ref _complate) < _jobs)
             {
-                Thread.Yield();
             }
+
+            Console.WriteLine($"Bench done");
         }
 
         public void Stop()
@@ -83,11 +78,17 @@ namespace Benchmark
         {
             Interlocked.Add(ref _ready, 1);
 
+            Console.WriteLine($"Thread ready:{Thread.CurrentThread.ManagedThreadId}");
+
             while (!Volatile.Read(ref _canStart))
             {
             }
 
+            Console.WriteLine($"Thread begin:{Thread.CurrentThread.ManagedThreadId}");
+
             action();
+
+            Console.WriteLine($"Thread done:{Thread.CurrentThread.ManagedThreadId}");
 
             Interlocked.Add(ref _complate, 1);
         }
