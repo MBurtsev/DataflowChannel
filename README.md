@@ -20,19 +20,20 @@ All read-write operations fully lock-free\wait-free.
 No order means that read order is not equal to write order.
     
 ### Bench only write:
+| Method | Threads |     Mean |    Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |------- |-------- |---------:|---------:|---------:|---------:|---------:|-------------:|--------------- |
-|  Write |       1 | 13.59 ns | 2.998 ns | 0.779 ns | 12.64 ns | 14.23 ns | 73,591,739.6 |  73,591,739.60 |
-|  Write |       2 | 14.37 ns | 1.565 ns | 0.406 ns | 13.93 ns | 15.00 ns | 69,606,770.3 | 139,213,540.60 |
-|  Write |       4 | 14.95 ns | 1.898 ns | 0.493 ns | 14.51 ns | 15.64 ns | 66,887,059.5 | 267,548,238.00 |
-|  Write |       8 | 20.27 ns | 2.629 ns | 0.407 ns | 19.93 ns | 20.86 ns | 49,331,228.9 | 394,649,831.20 |
+|  Write |       1 | 13.68 ns | 1.753 ns | 0.455 ns | 12.92 ns | 14.04 ns | 73,095,611.9 |  73,095,611.90 |
+|  Write |       2 | 14.18 ns | 2.664 ns | 0.412 ns | 13.61 ns | 14.60 ns | 70,519,462.2 | 141,038,924.40 |
+|  Write |       4 | 16.00 ns | 5.530 ns | 1.436 ns | 14.58 ns | 18.01 ns | 62,509,617.1 | 250,038,468.40 |
+|  Write |       8 | 20.34 ns | 2.097 ns | 0.325 ns | 19.86 ns | 20.52 ns | 49,160,348.0 | 393,282,784.00 |
 
-### Bench witers with one reader. Reader makes operations = count * writer_threads.
+### Bench witers with one reader thread. Reader makes operations = count * writer_threads.
 |          Method | Threads |     Mean |     Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |---------------- |-------- |---------:|----------:|---------:|---------:|---------:|-------------:|--------------- |
 | WriteWithReader |       1 | 45.46 ns | 27.188 ns | 4.207 ns | 39.19 ns | 48.19 ns | 21,997,555.4 |  21,997,555.40 |
 | WriteWithReader |       2 | 13.79 ns |  2.769 ns | 0.429 ns | 13.22 ns | 14.20 ns | 72,502,675.3 | 145,005,350.60 |
 | WriteWithReader |       4 | 28.24 ns |  8.616 ns | 2.238 ns | 26.20 ns | 31.79 ns | 35,414,159.8 | 141,656,639.20 |
-| WriteWithReader |       8 | 57.52 ns |  7.417 ns |  1.148 ns | 55.93 ns| 58.66 ns | 17,384,126.1 | 139,073,008.80 |
+| WriteWithReader |       8 | 57.82 ns |  8.543 ns | 1.322 ns | 56.99 ns | 59.80 ns | 17,294,063.4 | 138,352,507.20 |
 
 ## MPOC - Multiple Producers One Consumer
 ### Coming soon
