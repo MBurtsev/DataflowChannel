@@ -18,8 +18,13 @@ Performance:
 Producers use a spinlock for an initialization thread only once at a time.
 All read-write operations fully lock-free\wait-free.
 No order means that read order is not equal to write order.
-    
-### Bench only write:
+
+### Bench read
+| Method | Threads |     Mean |     Error |    StdDev |      Min |      Max |          Op/s |     Op/s total |
+|------- |-------- |---------:|----------:|----------:|---------:|---------:|--------------:|--------------- |
+|   Read |       1 | 6.174 ns | 0.4166 ns | 0.1082 ns | 6.076 ns | 6.345 ns | 161,958,259.3 | 161,958,259.30 |
+
+### Bench only writers:
 | Method | Threads |     Mean |    Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |------- |-------- |---------:|---------:|---------:|---------:|---------:|-------------:|--------------- |
 |  Write |       1 | 13.68 ns | 1.753 ns | 0.455 ns | 12.92 ns | 14.04 ns | 73,095,611.9 |  73,095,611.90 |
@@ -27,13 +32,16 @@ No order means that read order is not equal to write order.
 |  Write |       4 | 16.00 ns | 5.530 ns | 1.436 ns | 14.58 ns | 18.01 ns | 62,509,617.1 | 250,038,468.40 |
 |  Write |       8 | 20.34 ns | 2.097 ns | 0.325 ns | 19.86 ns | 20.52 ns | 49,160,348.0 | 393,282,784.00 |
 
-### Bench witers with one reader thread. Reader makes operations = count * writer_threads.
+### Bench witers with one reader thread. 
+#### The reader does operations all the time until the concumers write everything down.
 |          Method | Threads |     Mean |     Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |---------------- |-------- |---------:|----------:|---------:|---------:|---------:|-------------:|--------------- |
-| WriteWithReader |       1 | 45.46 ns | 27.188 ns | 4.207 ns | 39.19 ns | 48.19 ns | 21,997,555.4 |  21,997,555.40 |
-| WriteWithReader |       2 | 13.79 ns |  2.769 ns | 0.429 ns | 13.22 ns | 14.20 ns | 72,502,675.3 | 145,005,350.60 |
-| WriteWithReader |       4 | 28.24 ns |  8.616 ns | 2.238 ns | 26.20 ns | 31.79 ns | 35,414,159.8 | 141,656,639.20 |
-| WriteWithReader |       8 | 57.82 ns |  8.543 ns | 1.322 ns | 56.99 ns | 59.80 ns | 17,294,063.4 | 138,352,507.20 |
+| WriteWithReader |       1 | 43.14 ns | 10.044 ns | 1.554 ns | 41.34 ns | 44.67 ns | 23,178,917.9 |  23,178,917.90 |
+| WriteWithReader |       2 | 13.77 ns |  8.675 ns | 1.342 ns | 12.35 ns | 15.40 ns | 72,609,679.4 | 145,219,358.80 |
+| WriteWithReader |       4 | 15.83 ns |  3.533 ns | 0.547 ns | 15.09 ns | 16.28 ns | 63,154,552.5 | 252,618,210.00 |
+| WriteWithReader |       8 | 20.78 ns |  2.291 ns | 0.355 ns | 20.47 ns | 21.12 ns | 48,118,985.0 | 384,951,880.00 |
+
+
 
 ## MPOC - Multiple Producers One Consumer
 ### Coming soon
