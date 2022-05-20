@@ -32,7 +32,7 @@ No order means that read order is not equal to write order.
 |  Write |       4 | 16.00 ns | 5.530 ns | 1.436 ns | 14.58 ns | 18.01 ns | 62,509,617.1 | 250,038,468.40 |
 |  Write |       8 | 20.34 ns | 2.097 ns | 0.325 ns | 19.86 ns | 20.52 ns | 49,160,348.0 | 393,282,784.00 |
 
-### Bench witers with one reader thread. 
+### Bench writers with one reader thread. 
 #### The consumer does operations all the time until the producers write everything down.
 |          Method | Threads |     Mean |     Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |---------------- |-------- |---------:|----------:|---------:|---------:|---------:|-------------:|--------------- |
