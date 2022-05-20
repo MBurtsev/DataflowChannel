@@ -5,50 +5,50 @@ using BenchmarkDotNet.Attributes;
 using DataflowBench.Helper;
 using DataflowChannel;
 
-namespace DataflowBench.MPOCnoOrder
+namespace DataflowBench.MPMC
 {
     [Config(typeof(BenchConfigWithTotal))]
-    public class MPOCnoOrderWriteWithReader
+    public class MPMCRead
     {
         private const int COUNT = 100_000_000;
         private MultiThreadHelper _helper;
-        private ChannelMPOCnoOrder<int> _channel;
+        private ChannelMPMC<int> _channel;
 
         [Params(1, 2, 4, 8)]
         public int Threads { get; set; }
 
-        [IterationSetup(Target = nameof(WriteWithReader))]
-        public void WriteSetup()
+        [IterationSetup(Target = nameof(Read))]
+        public void ReadSetup()
         {
             _helper = new MultiThreadHelper();
-            _channel = new ChannelMPOCnoOrder<int>();
+            _channel = new ChannelMPMC<int>();
 
             for (var i = 0; i < Threads; i++)
             {
-                _helper.AddJob(WriteJob);
+                _helper.AddJob(ReadJob);
             }
 
-            _helper.AddHiddenJob(ReadJob);
+            // prepere data for read
+            for (var i = 0; i < COUNT * Threads; i++)
+            {
+                _channel.Write(1);
+            }
+
             _helper.WaitReady();
         }
 
         [Benchmark(OperationsPerInvoke = COUNT)]
-        public void WriteWithReader()
+        public void Read()
         {
             _helper.Start();
         }
 
-        public void WriteJob()
+        public void ReadJob()
         {
             for (var i = 0; i < COUNT; i++)
             {
-                _channel.Write(1);
+                _channel.TryRead(out _);
             }
-        }
-
-        public void ReadJob()
-        {
-            _channel.TryRead(out _);
         }
     }
 }

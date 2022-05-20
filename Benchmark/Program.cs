@@ -3,6 +3,7 @@
 
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
+using DataflowBench.MPMC;
 using DataflowBench.MPOCnoOrder;
 using DataflowBench.Temp;
 using System;
@@ -14,8 +15,8 @@ namespace DataflowBench
         public static void Main(string[] args)
         {
             // Temp
-            BenchmarkRunner.Run<MPOCnoOrderWriteA>();
-            BenchmarkRunner.Run<MPOCnoOrderWriteB>();
+            //BenchmarkRunner.Run<MPOCnoOrderWriteA>();
+            //BenchmarkRunner.Run<MPOCnoOrderWriteB>();
 
             // For debug
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new DebugInProcessConfig());
@@ -24,7 +25,14 @@ namespace DataflowBench
             //BenchmarkRunner.Run<OPOCBench>();
 
             // ChannelMPOCnoOrder
+            //BenchmarkRunner.Run<MPOCnoOrderRead>();
             //BenchmarkRunner.Run<MPOCnoOrderWrite>();
+            BenchmarkRunner.Run<MPOCnoOrderWriteWithReader>();
+
+            // ChannelMPMC
+            //BenchmarkRunner.Run<MPMCRead>();
+            //BenchmarkRunner.Run<MPMCWrite>();
+            //BenchmarkRunner.Run<MPMCReadWrite>();
 
             // ConcurrentQueue
             //BenchmarkRunner.Run<ConcurrentQueueBench>();

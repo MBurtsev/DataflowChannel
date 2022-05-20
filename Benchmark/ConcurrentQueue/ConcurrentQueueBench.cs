@@ -7,7 +7,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DataflowBench
+namespace DataflowBench.ConcurrentQueue
 {
     [Config(typeof(BenchConfig))]
     public class ConcurrentQueueBench

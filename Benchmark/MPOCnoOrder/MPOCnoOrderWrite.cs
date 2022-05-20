@@ -13,40 +13,37 @@ namespace DataflowBench.MPOCnoOrder
     public class MPOCnoOrderWrite
     {
         private const int COUNT = 100_000_000;
+        private MultiThreadHelper _helper;
         private ChannelMPOCnoOrder<int> _channel;
 
-        [Params(1,2,4,8)]
+        [Params(1, 2, 4, 8)]
         public int Threads { get; set; }
 
         [IterationSetup(Target = nameof(Write))]
         public void WriteSetup()
         {
+            _helper = new MultiThreadHelper();
             _channel = new ChannelMPOCnoOrder<int>();
+
+            for (var i = 0; i < Threads; i++)
+            {
+                _helper.AddJob(WriteJob);
+            }
+
+            _helper.WaitReady();
         }
 
         [Benchmark(OperationsPerInvoke = COUNT)]
         public void Write()
         {
-            var ready = 0;
+            _helper.Start();
+        }
 
-            // Launch consumers
-            for (var n = 0; n < Threads; n++)
+        public void WriteJob()
+        {
+            for (var i = 0; i < COUNT; i++)
             {
-                Task.Factory.StartNew(() =>
-                {
-                    for (var i = 0; i < COUNT; i++)
-                    {
-                        _channel.Write(1);
-                    }
-
-                    Interlocked.Increment(ref ready);
-                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-            }
-
-            // Wait until all write operations are completed
-            while (Volatile.Read(ref ready) < Threads)
-            {
-                Thread.Yield();
+                _channel.Write(1);
             }
         }
     }

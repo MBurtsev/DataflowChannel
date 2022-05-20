@@ -32,12 +32,12 @@ namespace Example
             //var channel = new ChannelMPOCnoOrder<int>();
 
             // No limits
+            var channel = new ChannelMPMC<int>();
+            //var channel = new DataflowChannel_B1.ChannelMPMC<int>();
             //var channel = new DataflowChannel_B0.ChannelMPMC<int>();
-            ////var channel = new DataflowChannel_B1.ChannelMPMC<int>();
             //var channel = new DataflowChannel_B11.ChannelMPMC<int>();
             //var channel = new DataflowChannel_B2.ChannelMPMC<int>();
             //var channel = new DataflowChannel_A.ChannelMPMC<int>();
-            var channel = new ChannelMPMC<int>();
 
             if (producers == 0)
             {

@@ -1,13 +1,14 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
+using DataflowChannel;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace DataflowChannel
+namespace DataflowChannel_A
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.
@@ -108,16 +109,7 @@ namespace DataflowChannel
         {
             unchecked
             {
-                var id      = Thread.CurrentThread.ManagedThreadId;
-                var channel = _channel;
-                var hash    = id % channel.Size;
-                var context  = channel.Storage[hash];
-
-                if (context.Id != id)
-                {
-                    context = SetupThread(id);
-                }
-
+                var context = GetContext();
                 ref var buffer = ref context.Buffer;
                 var seg = buffer.Writer;
                 var pos = seg.WriterPosition;

@@ -1,6 +1,7 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
@@ -19,7 +20,7 @@ namespace DataflowChannel_B1
     {
         // The default value that is used if the user has not specified a capacity.
         private const int SEGMENT_CAPACITY = 32*1024;
-        private const int OPERATION_CAPACITY = 1;
+        private const int OPERATION_CAPACITY = 4096;
         // Current segment size
         private readonly int _capacity;
         private ChannelData _channel;
@@ -41,7 +42,6 @@ namespace DataflowChannel_B1
             {
                 var channel = _channel;
                 var operation = Interlocked.Add(ref channel.WriterOperation, 1);
-
                 ref var data = ref channel.Storage[operation % OPERATION_CAPACITY];
                 var seg = data.Writer;
 
@@ -161,10 +161,14 @@ namespace DataflowChannel_B1
             public ChannelData(int capacity)
             {
                 Storage = new CycleBuffer[OPERATION_CAPACITY];
+                var proc = Environment.ProcessorCount;
 
-                for (var i = 0; i < OPERATION_CAPACITY; i++)
+                for (var n = 0; n < proc; n++)
                 {
-                    Storage[i] = new CycleBuffer(capacity);
+                    for (var i = n; i < OPERATION_CAPACITY; i += proc)
+                    {
+                        Storage[i] = new CycleBuffer(capacity);
+                    }
                 }
             }
 
@@ -175,7 +179,7 @@ namespace DataflowChannel_B1
             public int WriterOperation;
         }
 
-        private /*sealed class*/ struct CycleBuffer
+        private struct CycleBuffer
         {
             public CycleBuffer(int capacity)
             {
@@ -217,11 +221,6 @@ namespace DataflowChannel_B1
 
             // Next segment
             public CycleBufferSegment Next;
-
-            public override string ToString()
-            {
-                return this.GetHashCode().ToString();
-            }
         }
 
         #endregion

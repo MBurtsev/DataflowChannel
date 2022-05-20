@@ -41,7 +41,6 @@ namespace DataflowChannel
             }
         }
 
-
         public bool IsEmpty
         {
             get

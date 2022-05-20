@@ -42,6 +42,27 @@ namespace DataflowBench.Helper
             }
         }
 
+        /// <summary>
+        /// Adds a task that will stop when the main test ends.
+        /// This is necessary to make an additional load to simulate different scenarios.
+        /// </summary>
+        /// <param name="action"></param>
+        public void AddHiddenJob(Action action)
+        {
+            if (_useThreadPool)
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    HiddenJob(action);
+                },
+                CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
+            else
+            {
+                new Thread(() => HiddenJob(action)).Start();
+            }
+        }
+
         // Wait all threads are ready
         public void WaitReady()
         {
@@ -71,6 +92,23 @@ namespace DataflowBench.Helper
             }
 
             action();
+
+            Interlocked.Add(ref _complate, 1);
+        }
+
+        private void HiddenJob(Action action)
+        {
+            while (!Volatile.Read(ref _canStart))
+            {
+                Thread.Yield();
+            }
+
+            var jobs = Volatile.Read(ref _jobs);
+
+            while (Volatile.Read(ref _complate) < jobs)
+            {
+                action();
+            }
 
             Interlocked.Add(ref _complate, 1);
         }

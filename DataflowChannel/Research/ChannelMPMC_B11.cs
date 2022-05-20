@@ -19,7 +19,7 @@ namespace DataflowChannel_B11
     {
         // The default value that is used if the user has not specified a capacity.
         private const int SEGMENT_CAPACITY = 32*1024;
-        private const int OPERATION_CAPACITY = 1;
+        private const int OPERATION_CAPACITY = 2048;
         // Current segment size
         private readonly int _capacity;
         private ChannelData _channel;
@@ -40,17 +40,13 @@ namespace DataflowChannel_B11
             unchecked
             {
                 var channel = _channel;
-                //var operation = Interlocked.Add(ref channel.WriterOperation, 1);
-                var operation = 2;
+                var operation = Interlocked.Add(ref channel.WriterOperation, 1);
                 ref var data = ref channel.Storage[operation % OPERATION_CAPACITY];
 
-                Interlocked.CompareExchange(ref data.WriterSync, 0, 1);
-
-                data.WriterSync = 0;
-
                 var seg = data.Writer;
+                var pos = seg.WriterPosition;
 
-                if (seg.WriterPosition == _capacity)
+                if (pos == _capacity)
                 {
                     CycleBufferSegment next;
 
@@ -81,8 +77,6 @@ namespace DataflowChannel_B11
 
                     return;
                 }
-
-                var pos = seg.WriterPosition;
 
                 seg.WriterMessages[pos] = value;
                 seg.WriterPosition = pos + 1;
@@ -180,7 +174,7 @@ namespace DataflowChannel_B11
             public int WriterOperation;
         }
 
-        private /*sealed class*/ struct CycleBuffer
+        private struct CycleBuffer
         {
             public CycleBuffer(int capacity)
             {
@@ -189,7 +183,6 @@ namespace DataflowChannel_B11
                 Head   = seg;
                 Reader = seg;
                 Writer = seg;
-                WriterSync = 0;
             }
 
             // head segment
@@ -200,8 +193,6 @@ namespace DataflowChannel_B11
 
             // current writer segment
             public CycleBufferSegment Writer;
-
-            public int WriterSync;
         }
 
         private sealed class CycleBufferSegment
@@ -225,11 +216,6 @@ namespace DataflowChannel_B11
 
             // Next segment
             public CycleBufferSegment Next;
-
-            public override string ToString()
-            {
-                return this.GetHashCode().ToString();
-            }
         }
 
         #endregion
