@@ -33,7 +33,7 @@ No order means that read order is not equal to write order.
 |  Write |       8 | 20.34 ns | 2.097 ns | 0.325 ns | 19.86 ns | 20.52 ns | 49,160,348.0 | 393,282,784.00 |
 
 ### Bench witers with one reader thread. 
-#### The reader does operations all the time until the concumers write everything down.
+#### The consumer does operations all the time until the producers write everything down.
 |          Method | Threads |     Mean |     Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |---------------- |-------- |---------:|----------:|---------:|---------:|---------:|-------------:|--------------- |
 | WriteWithReader |       1 | 43.14 ns | 10.044 ns | 1.554 ns | 41.34 ns | 44.67 ns | 23,178,917.9 |  23,178,917.90 |
