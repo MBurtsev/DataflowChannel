@@ -6,13 +6,12 @@ This channel to use only two threads at the same time.
 At the core a cycle buffer that implements a producer-consumer pattern. 
 Wait-Free implementation without any CAS operations.
 
-Performance:
-
+#### Performance:
 |    Method |     Mean |     Error |    StdDev |      Min |      Max |          Op/s |
 |---------- |---------:|----------:|----------:|---------:|---------:|--------------:|
-|     Write | 5.821 ns | 0.1559 ns | 0.1031 ns | 5.683 ns | 5.953 ns | 171,780,592.1 |
-|      Read | 4.893 ns | 0.0888 ns | 0.0588 ns | 4.812 ns | 5.003 ns | 204,367,948.0 |
-| ReadWrite | 3.847 ns | 1.6445 ns | 0.9786 ns | 2.366 ns | 5.435 ns | 259,972,854.8 |
+|     Write | 4.579 ns | 0.3328 ns | 0.0515 ns | 4.529 ns | 4.651 ns | 218,410,951.1 |
+|      Read | 4.943 ns | 0.1997 ns | 0.0519 ns | 4.873 ns | 4.991 ns | 202,290,061.0 |
+| ReadWrite | 2.514 ns | 0.1986 ns | 0.0307 ns | 2.470 ns | 2.537 ns | 397,820,105.0 |
 
 ## MPOC no order - Multiple Producers One Consumer
 Producers use a spinlock for an initialization thread only once at a time.
@@ -32,8 +31,8 @@ No order means that read order is not equal to write order.
 |  Write |       4 | 16.00 ns | 5.530 ns | 1.436 ns | 14.58 ns | 18.01 ns | 62,509,617.1 | 250,038,468.40 |
 |  Write |       8 | 20.34 ns | 2.097 ns | 0.325 ns | 19.86 ns | 20.52 ns | 49,160,348.0 | 393,282,784.00 |
 
-### Bench witers with one reader thread. 
-#### The reader does operations all the time until the concumers write everything down.
+### Bench writers with one reader thread. 
+#### The consumer does operations all the time until the producers write everything down.
 |          Method | Threads |     Mean |     Error |   StdDev |      Min |      Max |         Op/s |     Op/s total |
 |---------------- |-------- |---------:|----------:|---------:|---------:|---------:|-------------:|--------------- |
 | WriteWithReader |       1 | 43.14 ns | 10.044 ns | 1.554 ns | 41.34 ns | 44.67 ns | 23,178,917.9 |  23,178,917.90 |
