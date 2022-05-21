@@ -22,12 +22,12 @@ namespace DataflowBench
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new DebugInProcessConfig());
 
             // ChannelOPOC
-            //BenchmarkRunner.Run<OPOCBench>();
+            BenchmarkRunner.Run<OPOCBench>();
 
             // ChannelMPOCnoOrder
             //BenchmarkRunner.Run<MPOCnoOrderRead>();
             //BenchmarkRunner.Run<MPOCnoOrderWrite>();
-            BenchmarkRunner.Run<MPOCnoOrderWriteWithReader>();
+            //BenchmarkRunner.Run<MPOCnoOrderWriteWithReader>();
 
             // ChannelMPMC
             //BenchmarkRunner.Run<MPMCRead>();

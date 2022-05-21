@@ -29,10 +29,10 @@ namespace Example
             //var channel = new ChannelOPOC<int>();
 
             // Attention: No more than one consumer
-            //var channel = new ChannelMPOCnoOrder<int>();
+            var channel = new ChannelMPOCnoOrder<int>();
 
             // No limits
-            var channel = new ChannelMPMC<int>();
+            //var channel = new ChannelMPMC<int>();
             //var channel = new DataflowChannel_B1.ChannelMPMC<int>();
             //var channel = new DataflowChannel_B0.ChannelMPMC<int>();
             //var channel = new DataflowChannel_B11.ChannelMPMC<int>();

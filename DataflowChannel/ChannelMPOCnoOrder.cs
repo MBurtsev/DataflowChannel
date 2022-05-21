@@ -34,7 +34,7 @@ namespace DataflowChannel
 
             for (var i = 0; i < _channel.Storage.Length; i++)
             {
-                _channel.Storage[i] = new ThreadContext();
+                _channel.Storage[i] = new CycleBuffer();
             }
         }
 
@@ -47,9 +47,9 @@ namespace DataflowChannel
                 while (cur != null)
                 {
 
-                    if (                   cur.Buffer.Reader != cur.Buffer.Writer
-                                                             ||
-                            cur.Buffer.Reader.ReaderPosition != cur.Buffer.Writer.WriterPosition
+                    if (                   cur.Reader != cur.Writer
+                                                      ||
+                            cur.Reader.ReaderPosition != cur.Writer.WriterPosition
                         )
                     {
                         return false;
@@ -72,9 +72,9 @@ namespace DataflowChannel
 
                 while (cur != null)
                 {
-                    var seg = cur.Buffer.Reader;
+                    var seg = cur.Reader;
 
-                    count += cur.Buffer.Reader.WriterPosition - cur.Buffer.Reader.ReaderPosition;
+                    count += cur.Reader.WriterPosition - cur.Reader.ReaderPosition;
 
                     seg = seg.Next;
 
@@ -82,14 +82,14 @@ namespace DataflowChannel
                     {
                         count += seg.WriterPosition;
 
-                        if (seg == cur.Buffer.Writer)
+                        if (seg == cur.Writer)
                         {
                             break;
                         }
 
                         if (seg.Next == null)
                         {
-                            seg = cur.Buffer.Head;
+                            seg = cur.Head;
                         }
                         else
                         {
@@ -108,49 +108,24 @@ namespace DataflowChannel
         {
             unchecked
             {
+                //var id = 10;
                 var id      = Thread.CurrentThread.ManagedThreadId;
                 var channel = _channel;
                 var hash    = id % channel.Size;
-                var context  = channel.Storage[hash];
+                var buffer = channel.Storage[hash];
+                //var context = channel.Storage[id];
 
-                if (context.Id != id)
+                if (buffer.Id != id)
                 {
-                    context = SetupThread(id);
+                    buffer = SetupThread(id);
                 }
 
-                ref var buffer = ref context.Buffer;
                 var seg = buffer.Writer;
                 var pos = seg.WriterPosition;
 
                 if (pos == SEGMENT_CAPACITY)
                 {
-                    CycleBufferSegment next;
-
-                    var flag = seg.Next == null;
-                    var reader = buffer.Reader;
-
-                    if (!flag && seg.Next != reader)
-                    {
-                        next = seg.Next;
-                    }
-                    else if (flag && buffer.Head != reader)
-                    {
-                        next = buffer.Head;
-                    }
-                    else
-                    {
-                        next = new CycleBufferSegment()
-                        {
-                            Next = seg.Next
-                        };
-
-                        seg.Next = next;
-                    }
-
-                    next.WriterMessages[0] = value;
-                    next.WriterPosition = 1;
-
-                    buffer.Writer = next;
+                    SetNext(seg, buffer, value);
 
                     return;
                 }
@@ -158,6 +133,39 @@ namespace DataflowChannel
                 seg.WriterMessages[pos] = value;
                 seg.WriterPosition = pos + 1;
             }
+        }
+
+        private void SetNext(CycleBufferSegment seg, CycleBuffer buffer, T value)
+        {
+            CycleBufferSegment next;
+
+            var flag = seg.Next == null;
+            var reader = buffer.Reader;
+
+            if (!flag && seg.Next != reader)
+            {
+                next = seg.Next;
+            }
+            else if (flag && buffer.Head != reader)
+            {
+                next = buffer.Head;
+            }
+            else
+            {
+                next = new CycleBufferSegment()
+                {
+                    Next = seg.Next
+                };
+
+                seg.Next = next;
+            }
+
+            next.WriterMessages[0] = value;
+            next.WriterPosition = 1;
+
+            buffer.Writer = next;
+
+            return;
         }
 
         public bool TryRead([MaybeNullWhen(false)] out T value)
@@ -177,12 +185,12 @@ namespace DataflowChannel
 
                 do
                 {
-                    var seg = cur.Buffer.Reader;
+                    var seg = cur.Reader;
                     var pos = seg.ReaderPosition;
 
                     if (pos == SEGMENT_CAPACITY)
                     {
-                        if (seg == cur.Buffer.Writer)
+                        if (seg == cur.Writer)
                         {
                             goto proceed;
                         }
@@ -195,11 +203,11 @@ namespace DataflowChannel
                         }
                         else
                         {
-                            next = cur.Buffer.Head;
+                            next = cur.Head;
                         }
 
                         pos = next.ReaderPosition = 0;
-                        seg = cur.Buffer.Reader = next;
+                        seg = cur.Reader = next;
                     }
 
                     // reader position check
@@ -242,7 +250,7 @@ namespace DataflowChannel
 
             for (var i = 0; i < newChannel.Storage.Length; i++)
             {
-                newChannel.Storage[i] = new ThreadContext();
+                newChannel.Storage[i] = new CycleBuffer();
             }
 
             _channel = newChannel;
@@ -252,7 +260,7 @@ namespace DataflowChannel
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ThreadContext GetContext()
+        private CycleBuffer GetContext()
         {
             unchecked
             {
@@ -270,7 +278,7 @@ namespace DataflowChannel
             }
         }
 
-        private ThreadContext SetupThread(int id)
+        private CycleBuffer SetupThread(int id)
         {
             var channel = _channel;
 
@@ -318,20 +326,12 @@ namespace DataflowChannel
                     {
                         if (current.Storage[i] == null)
                         {
-                            current.Storage[i] = new ThreadContext();
+                            current.Storage[i] = new CycleBuffer();
                         }
                     }
 
                     current.Head = channel.Head;
                 }
-                //// check the element in the correct place
-                //else if (channel.Storage[hash].Id != 0 && channel.Storage[hash].Id != hash)
-                //{
-                //    var tmp = channel.Storage[hash];
-
-                //    channel.Storage[tmp.Id] = tmp;
-                //    channel.Storage[hash]   = new ThreadData(_capacity);
-                //}
 
                 var thread = current.Storage[id];
 
@@ -365,49 +365,49 @@ namespace DataflowChannel
         {
             public ChannelData(int capacity)
             {
-                Storage = new ThreadContext[capacity];
+                Storage = new CycleBuffer[capacity];
                 Head    = null;
                 Reader  = null;
                 Size    = capacity;
             }
 
             // Head of linked list for reader
-            public ThreadContext Head;
+            public CycleBuffer Head;
             // Current reader position
-            public ThreadContext Reader;
+            public CycleBuffer Reader;
             
-            EmptySpace _empty00;
+            //EmptySpace _empty00;
 
             // To synchronize threads when expanding the storage or setup new thread
             public int SyncChannel;
             // Hash divider
             public readonly int Size;
             // For writers
-            public readonly ThreadContext[] Storage;
+            public readonly CycleBuffer[] Storage;
 
-            EmptySpace _empty01;
+            //EmptySpace _empty01;
         }
 
-        [DebuggerDisplay("Id:{Id}")]
-        private sealed class ThreadContext
-        {
-            public ThreadContext()
-            {
-                Id   = 0;
-                Buffer = new CycleBuffer();
-            }
+        //[DebuggerDisplay("Id:{Id}")]
+        //private sealed class ThreadContext
+        //{
+        //    public ThreadContext()
+        //    {
+        //        Id   = 0;
+        //        Buffer = new CycleBuffer();
+        //    }
 
-            // Owner id
-            public int Id;
-            // Channel data
-            public CycleBuffer Buffer;
-            // Next thread data segment
-            public ThreadContext Next;
-            
-            EmptySpace _empty01;
-        }
+        //    // Owner id
+        //    public int Id;
+        //    // Channel data
+        //    public CycleBuffer Buffer;
+        //    // Next thread data segment
+        //    public ThreadContext Next;
 
-        private struct CycleBuffer
+        //    EmptySpace _empty01;
+        //}
+
+        private sealed class CycleBuffer
         {
             public CycleBuffer()
             {
@@ -416,22 +416,25 @@ namespace DataflowChannel
                 Head   = seg;
                 Reader = seg;
                 Writer = seg;
-
-                _empty00 = default;
-                _empty01 = default;
+                Next = null;
+                Id = 0;
+                //_empty00 = default;
+                //_empty01 = default;
             }
 
-            // Head segment
-            public CycleBufferSegment Head;
-            // Current reader segment
-            public CycleBufferSegment Reader;
-
-            EmptySpace _empty00;
-
+            // Owner id
+            public int Id;
             // Current writer segment
             public CycleBufferSegment Writer;
+            // Next thread data segment
+            public CycleBuffer Next;
+            // Current reader segment
+            public CycleBufferSegment Reader;
+            // Head segment
+            public CycleBufferSegment Head;
 
-            EmptySpace _empty01;
+            //EmptySpace _empty00;
+            //EmptySpace _empty01;
         }
 
         [DebuggerDisplay("Reader:{ReaderPosition}, Writer:{WriterPosition}")]
@@ -450,14 +453,14 @@ namespace DataflowChannel
 
             public readonly T[] ReaderMessages;
 
-            EmptySpace _empty00;
+            //EmptySpace _empty00;
 
             // Writing thread position
             public int WriterPosition;
 
             public readonly T[] WriterMessages;
 
-            EmptySpace _empty01;
+            //EmptySpace _empty01;
 
             // Next segment
             public CycleBufferSegment Next;

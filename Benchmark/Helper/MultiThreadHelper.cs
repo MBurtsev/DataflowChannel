@@ -47,19 +47,19 @@ namespace DataflowBench.Helper
         /// This is necessary to make an additional load to simulate different scenarios.
         /// </summary>
         /// <param name="action"></param>
-        public void AddHiddenJob(Action action)
+        public void AddBackgroundJob(Action action)
         {
             if (_useThreadPool)
             {
                 Task.Factory.StartNew(() =>
                 {
-                    HiddenJob(action);
+                    BackgroundJob(action);
                 },
                 CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
             else
             {
-                new Thread(() => HiddenJob(action)).Start();
+                new Thread(() => BackgroundJob(action)).Start();
             }
         }
 
@@ -96,7 +96,7 @@ namespace DataflowBench.Helper
             Interlocked.Add(ref _complate, 1);
         }
 
-        private void HiddenJob(Action action)
+        private void BackgroundJob(Action action)
         {
             while (!Volatile.Read(ref _canStart))
             {

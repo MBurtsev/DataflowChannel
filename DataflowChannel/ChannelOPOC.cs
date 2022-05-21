@@ -92,38 +92,46 @@ namespace DataflowChannel
 
                 if (pos == SEGMENT_CAPACITY)
                 {
-                    CycleBufferSegment next;
-
-                    var flag = seg.Next == null;
-
-                    if (!flag && seg.Next != _data.Reader)
-                    {
-                        next = seg.Next;
-                    }
-                    else if (flag && _data.Head != _data.Reader)
-                    {
-                        next = _data.Head;
-                    }
-                    else
-                    {
-                        next = new CycleBufferSegment()
-                        {
-                            Next = seg.Next
-                        };
-
-                        seg.Next = next;
-                    }
-
-                    next.WriterMessages[0] = value;
-                    next.WriterPosition = 1;
-
-                    _data.Writer = next;
+                    SetNext(value, seg);
 
                     return;
                 }
 
                 seg.WriterMessages[pos] = value;
                 seg.WriterPosition = pos + 1;
+            }
+        }
+
+        private void SetNext(T value, CycleBufferSegment seg)
+        {
+            unchecked
+            {
+                CycleBufferSegment next;
+
+                var flag = seg.Next == null;
+
+                if (!flag && seg.Next != _data.Reader)
+                {
+                    next = seg.Next;
+                }
+                else if (flag && _data.Head != _data.Reader)
+                {
+                    next = _data.Head;
+                }
+                else
+                {
+                    next = new CycleBufferSegment()
+                    {
+                        Next = seg.Next
+                    };
+
+                    seg.Next = next;
+                }
+
+                next.WriterMessages[0] = value;
+                next.WriterPosition = 1;
+
+                _data.Writer = next;
             }
         }
 
