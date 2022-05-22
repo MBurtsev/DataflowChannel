@@ -14,8 +14,8 @@ namespace DataflowBench.MPOCnoOrder
         private MultiThreadHelper _helper;
         private ChannelMPOCnoOrder<int> _channel;
 
-        [Params(1, 1, 1, 1)]
-        //[Params(1, 2, 4, 8)]
+        //[Params(1, 1, 1, 1)]
+        [Params(1, 2, 4, 8)]
         public int Threads { get; set; }
 
         [IterationSetup(Target = nameof(WriteWithReader))]

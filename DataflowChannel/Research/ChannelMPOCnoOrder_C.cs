@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace DataflowChannel
+namespace DataflowChannel_C
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.
@@ -34,10 +34,7 @@ namespace DataflowChannel
 
             for (var i = 0; i < _channel.Storage.Length; i++)
             {
-                var buffer = new CycleBuffer();
-
-                _channel.Storage[i] = buffer;
-                _channel.WriterLinks[i] = buffer.Head.WriterLink;
+                _channel.Storage[i] = new CycleBuffer();
             }
         }
 
@@ -50,9 +47,9 @@ namespace DataflowChannel
                 while (cur != null)
                 {
 
-                    if (          cur.Reader.Messages != cur.Reader.WriterLink.WriterMessages
+                    if (          cur.Reader.Messages != cur.WriterMessages
                                                       ||
-                            cur.Reader.ReaderPosition != cur.Reader.WriterLink.WriterPosition
+                            cur.Reader.ReaderPosition != cur.WriterPosition
                         )
                     {
                         return false;
@@ -71,37 +68,37 @@ namespace DataflowChannel
             {
                 var count = 0;
 
-                var cur = _channel.Head;
+                //var cur = _channel.Head;
 
-                while (cur != null)
-                {
-                    var seg = cur.Reader;
+                //while (cur != null)
+                //{
+                //    var seg = cur.Reader;
 
-                    count += cur.Reader.WriterLink.WriterPosition - cur.Reader.ReaderPosition;
+                //    count += cur.WriterPosition - cur.Reader.ReaderPosition;
 
-                    seg = seg.Next;
+                //    seg = seg.Next;
 
-                    while (seg != null)
-                    {
-                        count += seg.WriterLink.WriterPosition;
+                //    while (seg != null)
+                //    {
+                //        count += seg.WriterPosition;
 
-                        if (seg == cur.Writer)
-                        {
-                            break;
-                        }
+                //        if (seg == cur.Writer)
+                //        {
+                //            break;
+                //        }
 
-                        if (seg.Next == null)
-                        {
-                            seg = cur.Head;
-                        }
-                        else
-                        {
-                            seg = seg.Next;
-                        }
-                    }
+                //        if (seg.Next == null)
+                //        {
+                //            seg = cur.Head;
+                //        }
+                //        else
+                //        {
+                //            seg = seg.Next;
+                //        }
+                //    }
 
-                    cur = cur.Next;
-                }
+                //    cur = cur.Next;
+                //}
 
                 return count;
             }
@@ -113,7 +110,7 @@ namespace DataflowChannel
             {
                 var id      = Thread.CurrentThread.ManagedThreadId;
                 var channel = _channel;
-                var buffer  = channel.WriterLinks[id % channel.Size];
+                var buffer  = channel.Storage[id % channel.Size];
 
                 if (buffer.Id != id)
                 {
@@ -124,7 +121,7 @@ namespace DataflowChannel
 
                 if (pos == SEGMENT_CAPACITY)
                 {
-                    SetNextSegment(channel, id, value);
+                    SetNextSegment(buffer, value);
 
                     return;
                 }
@@ -134,12 +131,10 @@ namespace DataflowChannel
             }
         }
 
-        private void SetNextSegment(ChannelData channel, int id, T value)
+        private void SetNextSegment(CycleBuffer buffer, T value)
         {
             unchecked
             {
-                var hash = id % channel.Size;
-                var buffer  = channel.Storage[hash];
                 var seg = buffer.Writer;
                 CycleBufferSegment next;
 
@@ -164,10 +159,9 @@ namespace DataflowChannel
                     seg.Next = next;
                 }
 
-                var link = channel.WriterLinks[hash] = next.WriterLink;
-
-                link.WriterMessages[0] = value;
-                link.WriterPosition = 1;
+                buffer.WriterMessages = next.Messages;
+                buffer.WriterMessages[0] = value;
+                buffer.WriterPosition = 1;
                 buffer.Writer = next;
             }
         }
@@ -215,7 +209,7 @@ namespace DataflowChannel
                     }
 
                     // reader position check
-                    if (seg != cur.Writer || pos != seg.WriterLink.WriterPosition)
+                    if (seg != cur.Writer || pos != cur.WriterPosition)
                     {
                         value = seg.Messages[pos];
 
@@ -263,15 +257,34 @@ namespace DataflowChannel
             channel.SyncChannel = 0;
         }
 
-        private WriterLink SetupThread(int id)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private CycleBuffer GetContext()
+        {
+            unchecked
+            {
+                var id      = Thread.CurrentThread.ManagedThreadId;
+                var channel = _channel;
+                var hash    = id % channel.Size;
+                var thread  = channel.Storage[hash];
+
+                if (thread.Id == id)
+                {
+                    return thread;
+                }
+
+                return SetupThread(id);
+            }
+        }
+
+        private CycleBuffer SetupThread(int id)
         {
             var channel = _channel;
 
             // set lock
             while (Interlocked.CompareExchange(ref channel.SyncChannel, 1, 0) != 0)
             {
-                Thread.Yield();
                 channel = Volatile.Read(ref _channel);
+                Thread.Yield();
             }
 
             try
@@ -279,14 +292,14 @@ namespace DataflowChannel
                 var current = channel;
                 var len     = channel.Size;
                 var hash    = id % len;
-                var max     = Math.Max(id, channel.WriterLinks[hash].Id);
+                var max     = Math.Max(id, channel.Storage[hash].Id);
 
                 if (max >= len)
                 {
                     // Search for max id
                     for (var i = 0; i < len; ++i)
                     {
-                        var item = channel.WriterLinks[i].Id;
+                        var item = channel.Storage[i].Id;
 
                         if (max < item)
                         {
@@ -301,11 +314,9 @@ namespace DataflowChannel
                     // Move data to new channel
                     for (var i = 0; i < channel.Size; ++i)
                     {
-                        var link_item = channel.WriterLinks[i];
-                        var buffer_item = channel.Storage[i];
+                        var item = channel.Storage[i];
 
-                        current.WriterLinks[link_item.Id] = link_item;
-                        current.Storage[link_item.Id] = buffer_item;
+                        current.Storage[item.Id] = item;
                     }
 
                     // Fill with empty
@@ -313,26 +324,22 @@ namespace DataflowChannel
                     {
                         if (current.Storage[i] == null)
                         {
-                            var new_buffer = new CycleBuffer();
-
-                            current.Storage[i] = new_buffer;
-                            current.WriterLinks[i] = new_buffer.Head.WriterLink;
+                            current.Storage[i] = new CycleBuffer();
                         }
                     }
 
                     current.Head = channel.Head;
                 }
 
-                var link = current.WriterLinks[id];
-                var buffer = current.Storage[id];
+                var thread = current.Storage[id];
 
-                link.Id    = id;
-                buffer.Next  = current.Head;
-                current.Head = buffer;
+                thread.Id    = id;
+                thread.Next  = current.Head;
+                current.Head = thread;
 
-                if (buffer.Next == null)
+                if (thread.Next == null)
                 {
-                    current.Reader = buffer;
+                    current.Reader = thread;
                 }
 
                 // write new link
@@ -341,7 +348,7 @@ namespace DataflowChannel
                     Volatile.Write(ref _channel, current);
                 }
 
-                return link;
+                return thread;
             }
             finally
             {
@@ -357,7 +364,6 @@ namespace DataflowChannel
             public ChannelData(int capacity)
             {
                 Storage = new CycleBuffer[capacity];
-                WriterLinks = new WriterLink[capacity];
                 Head    = null;
                 Reader  = null;
                 Size    = capacity;
@@ -376,8 +382,8 @@ namespace DataflowChannel
             public readonly int Size;
             // For writers
             public readonly CycleBuffer[] Storage;
-            //
-            public readonly WriterLink[] WriterLinks;
+
+            //EmptySpace _empty01;
         }
 
         private sealed class CycleBuffer
@@ -389,17 +395,27 @@ namespace DataflowChannel
                 Head   = seg;
                 Reader = seg;
                 Writer = seg;
+                WriterMessages = seg.Messages;
                 Next = null;
+                Id = 0;
+                //_empty00 = default;
+                //_empty01 = default;
             }
 
+            // Owner id
+            public int Id;
+            // Writing thread position
+            public int WriterPosition;
+            // Current writer segment
+            public T[] WriterMessages;
+            // Next thread data segment
+            public CycleBuffer Next;
             //
             public CycleBufferSegment Writer;
             // Current reader segment
             public CycleBufferSegment Reader;
             // Head segment
             public CycleBufferSegment Head;
-            // Next thread data segment
-            public CycleBuffer Next;
 
             //EmptySpace _empty00;
             //EmptySpace _empty01;
@@ -413,7 +429,6 @@ namespace DataflowChannel
                 var messages = new T[SEGMENT_CAPACITY];
 
                 Messages = messages;
-                WriterLink = new WriterLink(messages);
             }
 
             // Reading thread position
@@ -423,24 +438,6 @@ namespace DataflowChannel
 
             // Next segment
             public CycleBufferSegment Next;
-
-            // 
-            public WriterLink WriterLink;
-        }
-
-        private sealed class WriterLink
-        {
-            public WriterLink(T[] messages)
-            {
-                WriterMessages = messages;
-            }
-
-            // Owner id
-            public int Id;
-            // Writing thread position
-            public int WriterPosition;
-            // Current writer segment
-            public readonly T[] WriterMessages;
         }
 
         #endregion
