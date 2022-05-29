@@ -3,37 +3,37 @@
 
 using BenchmarkDotNet.Attributes;
 using DataflowBench.Helper;
-using DataflowChannel;
+using System.Collections.Concurrent;
 
-namespace DataflowBench.MPMC
+namespace DataflowBench.ConcurrentQueue
 {
     [Config(typeof(BenchConfigWithTotal))]
-    public class MPMCReadWrite
+    public class ConcurrentQueueWrite
     {
-        private const int COUNT = 100_000_000;
+        private const int COUNT = 10_000_000;
         private MultiThreadHelper _helper;
-        private ChannelMPMC<int> _channel;
+        private ConcurrentQueue<int> _queue;
 
-        [Params(1, 2, 4, 8)]
+        //[Params(1, 1, 1, 1)]
+        [Params(1, 2, 4)]
         public int Threads { get; set; }
 
-        [IterationSetup(Target = nameof(ReadWrite))]
-        public void ReadWriteSetup()
+        [IterationSetup(Target = nameof(Write))]
+        public void WriteSetup()
         {
             _helper = new MultiThreadHelper();
-            _channel = new ChannelMPMC<int>();
+            _queue = new ConcurrentQueue<int>();
 
             for (var i = 0; i < Threads; i++)
             {
                 _helper.AddJob(WriteJob);
-                _helper.AddJob(ReadJob);
             }
 
             _helper.WaitReady();
         }
 
-        [Benchmark(OperationsPerInvoke = COUNT * 2)]
-        public void ReadWrite()
+        [Benchmark(OperationsPerInvoke = COUNT)]
+        public void Write()
         {
             _helper.Start();
         }
@@ -42,15 +42,7 @@ namespace DataflowBench.MPMC
         {
             for (var i = 0; i < COUNT; i++)
             {
-                _channel.Write(1);
-            }
-        }
-
-        public void ReadJob()
-        {
-            for (var i = 0; i < COUNT; i++)
-            {
-                _channel.TryRead(out _);
+                _queue.Enqueue(1);
             }
         }
     }

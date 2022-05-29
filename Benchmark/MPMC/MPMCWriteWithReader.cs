@@ -8,18 +8,17 @@ using DataflowChannel;
 namespace DataflowBench.MPMC
 {
     [Config(typeof(BenchConfigWithTotal))]
-    public class MPMCWrite
+    public class MPMCWriteWithReader
     {
-        private const int COUNT = 10_000_000;
+        private const int COUNT = 100_000_000;
         private MultiThreadHelper _helper;
         private ChannelMPMC<int> _channel;
 
-        [Params(1, 1, 1, 1)]
-        //[Params(1, 2, 4, 8)]
+        [Params(1, 2, 4, 8)]
         public int Threads { get; set; }
 
-        [IterationSetup(Target = nameof(Write))]
-        public void WriteSetup()
+        [IterationSetup(Target = nameof(WriteWithReader))]
+        public void WriteWithReaderSetup()
         {
             _helper = new MultiThreadHelper();
             _channel = new ChannelMPMC<int>();
@@ -29,11 +28,12 @@ namespace DataflowBench.MPMC
                 _helper.AddJob(WriteJob);
             }
 
+            _helper.AddBackgroundJob(ReadJob);
             _helper.WaitReady();
         }
 
-        [Benchmark(OperationsPerInvoke = COUNT)]
-        public void Write()
+        [Benchmark(OperationsPerInvoke = COUNT * 2)]
+        public void WriteWithReader()
         {
             _helper.Start();
         }
@@ -44,6 +44,11 @@ namespace DataflowBench.MPMC
             {
                 _channel.Write(1);
             }
+        }
+
+        public void ReadJob()
+        {
+            _channel.TryRead(out _);
         }
     }
 }

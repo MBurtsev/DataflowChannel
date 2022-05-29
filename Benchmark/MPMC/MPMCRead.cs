@@ -14,9 +14,10 @@ namespace DataflowBench.MPMC
         private MultiThreadHelper _helper;
         private ChannelMPMC<int> _channel;
 
-        [Params(1, 2, 4, 8)]
+        [Params(1)]
+        //[Params(1, 2, 4, 8)]
         public int Threads { get; set; }
-
+        
         [IterationSetup(Target = nameof(Read))]
         public void ReadSetup()
         {

@@ -6,13 +6,10 @@ using System.Threading;
 
 // Here is the working class, but not so fast as I want
 
-namespace DataflowChannelA
+namespace DataflowChannel_A
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.
-    /// At the core a cycle buffer that implements a producer-consumer pattern. 
-    /// Synchronization of writer threads only with Interlocked.Add.
-    /// Reader fully lock-free\wait-free.
     /// </summary>
     public partial class ChannelMPOC<T>
     {
@@ -120,6 +117,7 @@ namespace DataflowChannelA
                 {
                     while (Volatile.Read(ref _data.Writer) == seg)
                     {
+                        Thread.Yield();
                     }
 
                     Write(value);

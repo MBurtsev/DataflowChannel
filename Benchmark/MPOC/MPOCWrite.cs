@@ -5,16 +5,16 @@ using BenchmarkDotNet.Attributes;
 using DataflowBench.Helper;
 using DataflowChannel;
 
-namespace DataflowBench.MPMC
+namespace DataflowBench.MPOC
 {
     [Config(typeof(BenchConfigWithTotal))]
-    public class MPMCWrite
+    public class MPOCWrite
     {
-        private const int COUNT = 10_000_000;
+        private const int COUNT = 100_000_000;
         private MultiThreadHelper _helper;
-        private ChannelMPMC<int> _channel;
+        private ChannelMPOC<int> _channel;
 
-        [Params(1, 1, 1, 1)]
+        [Params(1, 1, 1)]
         //[Params(1, 2, 4, 8)]
         public int Threads { get; set; }
 
@@ -22,7 +22,7 @@ namespace DataflowBench.MPMC
         public void WriteSetup()
         {
             _helper = new MultiThreadHelper();
-            _channel = new ChannelMPMC<int>();
+            _channel = new ChannelMPOC<int>();
 
             for (var i = 0; i < Threads; i++)
             {

@@ -16,7 +16,7 @@ namespace DataflowChannel_C
     /// All read-write operations fully lock-free\wait-free.
     /// No order means that read order is not equal to write order.
     /// </summary>
-    public partial class ChannelMPOCnoOrder<T>
+    public partial class ChannelMPOCnoOrder_C<T>
     {
         private const int THREADS_STORAGE_SIZE = 32;
         // The default value that is used if the user has not specified a capacity.
@@ -24,11 +24,11 @@ namespace DataflowChannel_C
         // Channel data
         private ChannelData _channel;
 
-        public ChannelMPOCnoOrder() : this(SEGMENT_CAPACITY)
+        public ChannelMPOCnoOrder_C() : this(SEGMENT_CAPACITY)
         { 
         }
 
-        public ChannelMPOCnoOrder(int capacity)
+        public ChannelMPOCnoOrder_C(int capacity)
         {
             _channel  = new ChannelData(((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE);
 

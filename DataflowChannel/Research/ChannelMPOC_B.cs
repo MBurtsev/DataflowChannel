@@ -6,7 +6,7 @@ using System.Threading;
 
 // Here is the working class, but not so fast as I want
 
-namespace DataflowChannelB
+namespace DataflowChannel_B
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.

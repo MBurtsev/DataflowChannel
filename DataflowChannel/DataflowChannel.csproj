@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="DataflowChannel\**" />
+    <EmbeddedResource Remove="DataflowChannel\**" />
+    <None Remove="DataflowChannel\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
