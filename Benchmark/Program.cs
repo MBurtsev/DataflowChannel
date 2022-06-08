@@ -28,13 +28,13 @@ namespace DataflowBench
 
             // ChannelMPOC
             //BenchmarkRunner.Run<MPOCRead>();
-            BenchmarkRunner.Run<MPOCWrite>();
+            //BenchmarkRunner.Run<MPOCWrite>();
             //BenchmarkRunner.Run<MPOCWriteWithReader>();
 
             // ChannelMPOCnoOrder
             //BenchmarkRunner.Run<MPOCnoOrderRead>();
             //BenchmarkRunner.Run<MPOCnoOrderWrite>();
-            //BenchmarkRunner.Run<MPOCnoOrderWriteWithReader>();
+            BenchmarkRunner.Run<MPOCnoOrderWriteWithReader>();
 
             // ChannelMPMC
             //BenchmarkRunner.Run<MPMCRead>();

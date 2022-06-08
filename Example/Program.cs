@@ -18,8 +18,8 @@ namespace Example
 
         static void Sample()
         {
-            var producers = 1;
-            var consumers = 0;
+            var producers = 8;
+            var consumers = 1;
             var threads = producers + consumers;
             var ready = 0;
             var count = 100_000_000;
@@ -41,7 +41,7 @@ namespace Example
 
             if (producers == 0)
             {
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < count * consumers; i++)
                 {
                     channel.Write(i);
                 }
