@@ -109,10 +109,6 @@ namespace Example
 
                                 continue;
                             }
-                            else if (num != sum)
-                            {
-                                var bp = 0;
-                            }
 
                             sum++;
                         }
