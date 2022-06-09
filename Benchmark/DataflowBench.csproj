@@ -4,6 +4,11 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <Configurations>Debug;Release;ReleaseResearch;DebugResearch</Configurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseResearch|AnyCPU'">
+    <Optimize>True</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DataflowChannel\DataflowChannel.csproj" />
+    <ProjectReference Include="..\Dataflow\Dataflow.csproj" />
   </ItemGroup>
 
 </Project>

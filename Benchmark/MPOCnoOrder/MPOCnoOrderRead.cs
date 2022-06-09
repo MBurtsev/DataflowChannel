@@ -3,7 +3,7 @@
 
 using BenchmarkDotNet.Attributes;
 using DataflowBench.Helper;
-using DataflowChannel;
+using Dataflow.Concurrent.Channel;
 
 namespace DataflowBench.MPOCnoOrder
 {

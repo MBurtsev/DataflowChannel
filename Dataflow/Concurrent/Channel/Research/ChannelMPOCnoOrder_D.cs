@@ -4,10 +4,36 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace DataflowChannel
+/* Research aggressive memory allocation.
+ * Each next segment is 2 times larger. As practice has shown, this approach is not justified. 
+ * Losses increase with the growth of threads concurrency.
+ 
+| Method | Threads |     Mean |     Error |    StdDev |      Min |      Max |          Op/s |     Op/s total |
+|------- |-------- |---------:|----------:|----------:|---------:|---------:|--------------:|--------------- |
+|   Read |       1 | 6.317 ns | 0.7995 ns | 0.1237 ns | 6.164 ns | 6.422 ns | 158,291,164.6 | 158,291,164.60 |
+|   Read |       1 | 6.349 ns | 1.0468 ns | 0.2719 ns | 6.077 ns | 6.771 ns | 157,495,022.8 | 157,495,022.80 |
+|   Read |       1 | 6.268 ns | 0.4170 ns | 0.0645 ns | 6.188 ns | 6.327 ns | 159,548,713.3 | 159,548,713.30 |
+|   Read |       1 | 6.212 ns | 0.3040 ns | 0.0790 ns | 6.120 ns | 6.327 ns | 160,976,086.9 | 160,976,086.90 |
+
+| Method | Threads |      Mean |     Error |    StdDev |       Min |      Max |          Op/s |     Op/s total |
+|------- |-------- |----------:|----------:|----------:|----------:|---------:|--------------:|--------------- |
+|  Write |       1 |  9.803 ns | 3.5358 ns | 0.9182 ns |  8.744 ns | 10.76 ns | 102,008,138.3 | 102,008,138.30 |
+|  Write |       2 | 12.698 ns | 2.6105 ns | 0.4040 ns | 12.354 ns | 13.28 ns |  78,750,700.5 | 157,501,401.00 |
+|  Write |       4 | 14.616 ns | 2.2556 ns | 0.5858 ns | 13.731 ns | 15.15 ns |  68,418,520.1 | 273,674,080.40 |
+|  Write |       8 | 18.859 ns | 0.4787 ns | 0.0741 ns | 18.769 ns | 18.95 ns |  53,024,278.1 | 424,194,224.80 |
+
+|          Method | Threads |     Mean |     Error |   StdDev |   Median |       Min |      Max |         Op/s |     Op/s total |
+|---------------- |-------- |---------:|----------:|---------:|---------:|----------:|---------:|-------------:|--------------- |
+| WriteWithReader |       1 | 17.26 ns | 33.502 ns | 8.700 ns | 11.92 ns |  9.171 ns | 27.14 ns | 57,936,858.3 |  57,936,858.30 |
+| WriteWithReader |       2 | 13.07 ns |  3.829 ns | 0.994 ns | 13.13 ns | 11.621 ns | 14.08 ns | 76,491,967.0 | 152,983,934.00 |
+| WriteWithReader |       4 | 16.14 ns |  7.519 ns | 1.953 ns | 15.45 ns | 13.733 ns | 18.80 ns | 61,943,706.8 | 247,774,827.20 |
+| WriteWithReader |       8 | 18.38 ns |  6.135 ns | 1.593 ns | 18.89 ns | 16.495 ns | 19.85 ns | 54,397,827.7 | 435,182,621.60 |
+
+*/
+
+namespace Dataflow.Concurrent.Channel_D
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.
@@ -20,17 +46,17 @@ namespace DataflowChannel
     {
         private const int THREADS_STORAGE_SIZE = 32;
         // The default value that is used if the user has not specified a capacity.
-        private const int SEGMENT_CAPACITY = 32 * 1024;
+        private const int DEFAULT_SEGMENT_CAPACITY = 32 * 1024;
         // Channel data
         private ChannelData _channel;
 
-        public ChannelMPOCnoOrder() : this(SEGMENT_CAPACITY)
-        { 
+        public ChannelMPOCnoOrder() : this(DEFAULT_SEGMENT_CAPACITY)
+        {
         }
 
         public ChannelMPOCnoOrder(int capacity)
         {
-            _channel  = new ChannelData(((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE);
+            _channel = new ChannelData((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE + 1) * THREADS_STORAGE_SIZE);
 
             for (var i = 0; i < _channel.Storage.Length; i++)
             {
@@ -50,7 +76,7 @@ namespace DataflowChannel
                 while (cur != null)
                 {
 
-                    if (          cur.Reader.Messages != cur.Reader.WriterLink.WriterMessages
+                    if (cur.Reader.Messages != cur.Reader.WriterLink.WriterMessages
                                                       ||
                             cur.Reader.ReaderPosition != cur.Reader.WriterLink.WriterPosition
                         )
@@ -122,7 +148,7 @@ namespace DataflowChannel
 
                 var pos = link.WriterPosition;
 
-                if (pos == SEGMENT_CAPACITY)
+                if (pos == link.WriterMessages.Length)
                 {
                     SetNextSegment(channel, id, value);
 
@@ -156,7 +182,7 @@ namespace DataflowChannel
                 }
                 else
                 {
-                    next = new CycleBufferSegment()
+                    next = new CycleBufferSegment(seg.Messages.Length * 2)
                     {
                         Next = seg.Next
                     };
@@ -194,7 +220,7 @@ namespace DataflowChannel
                     var seg = cur.Reader;
                     var pos = seg.ReaderPosition;
 
-                    if (pos == SEGMENT_CAPACITY)
+                    if (pos == seg.Messages.Length)
                     {
                         if (seg == cur.Writer)
                         {
@@ -226,14 +252,14 @@ namespace DataflowChannel
                         return true;
                     }
 
-                proceed: 
+                proceed:
                     cur = channel.Reader = cur.Next;
 
                     if (cur == null)
                     {
                         cur = channel.Reader = channel.Head;
                     }
-                } 
+                }
                 while (cur != start);
 
                 value = default;
@@ -335,7 +361,7 @@ namespace DataflowChannel
                     current.Reader = buffer;
                 }
 
-                buffer.Next  = current.Head;
+                buffer.Next = current.Head;
                 current.Head = buffer;
 
                 // write new link
@@ -361,9 +387,9 @@ namespace DataflowChannel
             {
                 Storage = new CycleBuffer[capacity];
                 WriterLinks = new WriterLink[capacity];
-                Head    = null;
-                Reader  = null;
-                Size    = capacity;
+                Head = null;
+                Reader = null;
+                Size = capacity;
             }
 
             // Head of linked list for reader
@@ -385,12 +411,12 @@ namespace DataflowChannel
         {
             public CycleBuffer()
             {
-                var seg = new CycleBufferSegment();
-                
-                Head   = seg;
+                var seg = new CycleBufferSegment(DEFAULT_SEGMENT_CAPACITY);
+
+                Head = seg;
                 Reader = seg;
                 Writer = seg;
-                Next   = null;
+                Next = null;
             }
 
             // Current reader segment
@@ -406,17 +432,17 @@ namespace DataflowChannel
         [DebuggerDisplay("Reader:{ReaderPosition}")]
         private sealed class CycleBufferSegment
         {
-            public CycleBufferSegment()
+            public CycleBufferSegment(int size)
             {
-                var messages = new T[SEGMENT_CAPACITY];
+                var messages = new T[size];
 
-                Messages   = messages;
+                Messages = messages;
                 WriterLink = new WriterLink(messages);
             }
 
             // Reading thread position
             public int ReaderPosition;
-
+            //
             public readonly T[] Messages;
             // 
             public readonly WriterLink WriterLink;

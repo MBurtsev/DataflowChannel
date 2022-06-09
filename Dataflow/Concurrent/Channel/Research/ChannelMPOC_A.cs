@@ -6,7 +6,7 @@ using System.Threading;
 
 // Here is the working class, but not so fast as I want
 
-namespace DataflowChannel_A
+namespace Dataflow.Concurrent.Channel_A
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.
@@ -21,12 +21,12 @@ namespace DataflowChannel_A
         private CycleBufferMPOC<T> _data;
 
         public ChannelMPOC() : this(DEFAULT_CAPACITY)
-        { 
+        {
         }
 
         public ChannelMPOC(int capacity)
         {
-            _data   = new CycleBufferMPOC<T>(capacity);
+            _data = new CycleBufferMPOC<T>(capacity);
             _capacity = capacity;
         }
 
@@ -34,9 +34,9 @@ namespace DataflowChannel_A
         {
             get
             {
-                 return            _data.Reader == _data.Writer 
-                                                  && 
-                    _data.Reader.ReaderPosition == _data.Writer.WriterPosition;
+                return _data.Reader == _data.Writer
+                                                 &&
+                   _data.Reader.ReaderPosition == _data.Writer.WriterPosition;
             }
         }
 
@@ -46,7 +46,7 @@ namespace DataflowChannel_A
             {
                 var seg = _data.Reader;
                 var count = _data.Reader.WriterPosition - _data.Reader.ReaderPosition;
-                
+
                 seg = seg.Next;
 
                 while (seg != null)
@@ -306,7 +306,7 @@ namespace DataflowChannel_A
 
             public override string ToString()
             {
-                return this.GetHashCode().ToString();
+                return GetHashCode().ToString();
             }
         }
 

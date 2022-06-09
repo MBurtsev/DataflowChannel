@@ -3,7 +3,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace DataflowChannel
+namespace Dataflow.Concurrent
 {
     internal class Helper
     {

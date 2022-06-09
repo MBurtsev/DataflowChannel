@@ -1,7 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
+using Dataflow.Concurrent.Channel;
 using DataflowBench.Helper;
-using DataflowChannel;
 
 namespace DataflowBench.Temp
 {

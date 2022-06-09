@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace DataflowChannel
+namespace Dataflow.Concurrent.Channel_D
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.

@@ -1,14 +1,14 @@
 ﻿// Maksim Burtsev https://github.com/MBurtsev
 // Licensed under the MIT license.
 
-using DataflowChannel;
+using Dataflow.Concurrent;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace DataflowChannel_A
+namespace Dataflow.Concurrent.Channel_A
 {
     /// <summary>
     /// MPOC - Multiple Producer One Consumer.
@@ -26,12 +26,12 @@ namespace DataflowChannel_A
         private ChannelData _channel;
 
         public ChannelMPOCnoOrder() : this(SEGMENT_CAPACITY)
-        { 
+        {
         }
 
         public ChannelMPOCnoOrder(int capacity)
         {
-            _channel  = new ChannelData(((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE);
+            _channel = new ChannelData((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE + 1) * THREADS_STORAGE_SIZE);
 
             for (var i = 0; i < _channel.Storage.Length; i++)
             {
@@ -48,7 +48,7 @@ namespace DataflowChannel_A
                 while (cur != null)
                 {
 
-                    if (                   cur.Buffer.Reader != cur.Buffer.Writer
+                    if (cur.Buffer.Reader != cur.Buffer.Writer
                                                              ||
                             cur.Buffer.Reader.ReaderPosition != cur.Buffer.Writer.WriterPosition
                         )
@@ -204,14 +204,14 @@ namespace DataflowChannel_A
                         return true;
                     }
 
-                proceed: 
+                proceed:
                     cur = channel.Reader = cur.Next;
 
                     if (cur == null)
                     {
                         cur = channel.Reader = channel.Head;
                     }
-                } 
+                }
                 while (cur != start);
 
                 value = default;
@@ -293,7 +293,7 @@ namespace DataflowChannel_A
                         }
                     }
 
-                    len = ((max % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE * 2;
+                    len = (max % THREADS_STORAGE_SIZE + 1) * THREADS_STORAGE_SIZE * 2;
 
                     current = new ChannelData(len);
 
@@ -327,8 +327,8 @@ namespace DataflowChannel_A
 
                 var thread = current.Storage[id];
 
-                thread.Id    = id;
-                thread.Next  = current.Head;
+                thread.Id = id;
+                thread.Next = current.Head;
                 current.Head = thread;
 
                 if (thread.Next == null)
@@ -358,16 +358,16 @@ namespace DataflowChannel_A
             public ChannelData(int capacity)
             {
                 Storage = new ThreadContext[capacity];
-                Head    = null;
-                Reader  = null;
-                Size    = capacity;
+                Head = null;
+                Reader = null;
+                Size = capacity;
             }
 
             // Head of linked list for reader
             public ThreadContext Head;
             // Current reader position
             public ThreadContext Reader;
-            
+
             EmptySpace _empty00;
 
             // To synchronize threads when expanding the storage or setup new thread
@@ -385,7 +385,7 @@ namespace DataflowChannel_A
         {
             public ThreadContext()
             {
-                Id   = 0;
+                Id = 0;
                 Buffer = new CycleBuffer();
             }
 
@@ -395,7 +395,7 @@ namespace DataflowChannel_A
             public CycleBuffer Buffer;
             // Next thread data segment
             public ThreadContext Next;
-            
+
             EmptySpace _empty01;
         }
 
@@ -405,7 +405,7 @@ namespace DataflowChannel_A
             {
                 var seg = new CycleBufferSegment();
 
-                Head   = seg;
+                Head = seg;
                 Reader = seg;
                 Writer = seg;
 
@@ -456,7 +456,7 @@ namespace DataflowChannel_A
 
             public override string ToString()
             {
-                return this.GetHashCode().ToString();
+                return GetHashCode().ToString();
             }
         }
 

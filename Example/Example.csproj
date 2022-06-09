@@ -5,10 +5,15 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Configurations>Debug;Release;ReleaseResearch;DebugResearch</Configurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseResearch|AnyCPU'">
+    <Optimize>True</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DataflowChannel\DataflowChannel.csproj" />
+    <ProjectReference Include="..\Dataflow\Dataflow.csproj" />
   </ItemGroup>
 
 </Project>

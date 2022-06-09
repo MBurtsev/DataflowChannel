@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace DataflowChannel_A
+namespace Dataflow.Concurrent.Channel_A
 {
     /// <summary>
     /// MPOC - Multiple Producer Multiple Consumer.
@@ -23,13 +23,13 @@ namespace DataflowChannel_A
         private ChannelData _channel;
 
         public ChannelMPMC() : this(DEFAULT_CAPACITY)
-        { 
+        {
         }
 
         public ChannelMPMC(int capacity)
         {
             _capacity = capacity;
-            _channel  = new ChannelData(((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE);
+            _channel = new ChannelData((Thread.CurrentThread.ManagedThreadId % THREADS_STORAGE_SIZE + 1) * THREADS_STORAGE_SIZE);
 
             for (var i = 0; i < _channel.Storage.Length; i++)
             {
@@ -46,7 +46,7 @@ namespace DataflowChannel_A
                 while (cur != null)
                 {
 
-                    if (                   cur.Data.Reader != cur.Data.Writer
+                    if (cur.Data.Reader != cur.Data.Writer
                                                            ||
                             cur.Data.Reader.ReaderPosition != cur.Data.Writer.WriterPosition
                         )
@@ -147,7 +147,7 @@ namespace DataflowChannel_A
                 // Declare new operation id
                 var operation = Interlocked.Add(ref channel.WriterOperation, 1);
                 // Write value
-                seg.WriterMessages[seg.WriterPosition] = 
+                seg.WriterMessages[seg.WriterPosition] =
                     new MessageItem { Value = value, Operation = (uint)operation-- };
                 // Don't worry about out of sync. Since the write is atomic,
                 // we'll be fine with either of the last values.
@@ -161,7 +161,7 @@ namespace DataflowChannel_A
                     var thread = channel.Storage[last % channel.Size];
                     var tSeg   = thread.Data.Writer;
                     var tPos   = tSeg.WriterPosition - 1;
-                    
+
                     while (true)
                     {
                         ref var tOpr = ref tSeg.WriterMessages[tPos];
@@ -348,7 +348,7 @@ namespace DataflowChannel_A
                         }
                     }
 
-                    len = ((max % THREADS_STORAGE_SIZE) + 1) * THREADS_STORAGE_SIZE * 2;
+                    len = (max % THREADS_STORAGE_SIZE + 1) * THREADS_STORAGE_SIZE * 2;
 
                     current = new ChannelData(len);
 
@@ -374,8 +374,8 @@ namespace DataflowChannel_A
 
                 var thread = current.Storage[id];
 
-                thread.Id    = id;
-                thread.Next  = current.Head;
+                thread.Id = id;
+                thread.Next = current.Head;
                 current.Head = thread;
 
                 if (thread.Next == null)
@@ -407,7 +407,7 @@ namespace DataflowChannel_A
             {
                 Storage = new ThreadData[capacity];
 
-                Size    = capacity;
+                Size = capacity;
             }
 
             // Head of linked list for reader
@@ -504,7 +504,7 @@ namespace DataflowChannel_A
         {
             public ThreadData(int capacity)
             {
-                Id   = 0;
+                Id = 0;
                 Data = new CycleBufferMPOC(capacity);
             }
 
@@ -548,7 +548,7 @@ namespace DataflowChannel_A
             {
                 var seg = new CycleBufferSegmentMPOC(capacity);
 
-                Head   = seg;
+                Head = seg;
                 Reader = seg;
                 Writer = seg;
             }
@@ -662,7 +662,7 @@ namespace DataflowChannel_A
 
             public override string ToString()
             {
-                return this.GetHashCode().ToString();
+                return GetHashCode().ToString();
             }
         }
 

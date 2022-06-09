@@ -2,8 +2,8 @@
 // Licensed under the MIT license.
 
 using BenchmarkDotNet.Attributes;
+using Dataflow.Concurrent.Channel_B2;
 using DataflowBench.Helper;
-using DataflowChannel;
 
 namespace DataflowBench.MPMC
 {

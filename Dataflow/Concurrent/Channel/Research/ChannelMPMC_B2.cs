@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace DataflowChannel_B2
+namespace Dataflow.Concurrent.Channel_B2
 {
     /// <summary>
     /// MPOC - Multiple Producer Multiple Consumer.
@@ -22,7 +22,7 @@ namespace DataflowChannel_B2
         private ChannelData _channel;
 
         public ChannelMPMC() : this(MESSAGES_CAPACITY)
-        { 
+        {
         }
 
         public ChannelMPMC(int capacity)
@@ -33,7 +33,7 @@ namespace DataflowChannel_B2
 
         public void Write(T value)
         {
-            
+
             unchecked
             {
                 var channel = _channel;
@@ -64,7 +64,7 @@ namespace DataflowChannel_B2
                         if (next == data.Segments.Length)
                         {
                             var tmp = new CycleBufferSegment[next * 2];
-                            
+
                             Array.Copy(data.Segments, tmp, data.Segments.Length);
 
                             data.Segments = tmp;
@@ -190,10 +190,10 @@ namespace DataflowChannel_B2
         {
             public CycleBuffer(bool flag)
             {
-                Count    = 1;
-                Head     = 0;
-                Reader   = 0;
-                Writer   = 0;
+                Count = 1;
+                Head = 0;
+                Reader = 0;
+                Writer = 0;
                 Segments = new CycleBufferSegment[SEGMENT_CAPACITY];
 
                 Segments[0] = new CycleBufferSegment(true);
@@ -219,8 +219,8 @@ namespace DataflowChannel_B2
             {
                 ReaderPosition = 0;
                 WriterPosition = 0;
-                Next           = 0;
-                Messages       = new T[MESSAGES_CAPACITY];
+                Next = 0;
+                Messages = new T[MESSAGES_CAPACITY];
             }
 
             // Reading thread position

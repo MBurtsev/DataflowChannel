@@ -3,8 +3,8 @@
 
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
+using Dataflow.Concurrent.Channel;
 using DataflowBench.Helper;
-using DataflowChannel;
 using System.Threading;
 using System.Threading.Tasks;
 
